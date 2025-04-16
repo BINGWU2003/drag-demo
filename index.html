@@ -585,47 +585,53 @@
     </div>
 
     <!-- 搜索功能，只在查看模式显示 -->
-    <div class="search-container" v-if="!designMode">
-      <input type="text" class="search-input" v-model="searchQuery" placeholder="输入货架ID、名称或区域进行搜索"
-        @keyup.enter="searchShelves">
-      <button class="search-button" @click="searchShelves">搜索货架</button>
-      <button class="search-button search-clear" @click="clearSearch" v-if="isSearchActive">清除搜索</button>
-      <div class="search-result-status" v-if="isSearchActive">
-        找到 {{ filteredShelves.length }} 个匹配货架
+    <div v-if="!designMode">
+      <div class="search-container">
+        <input type="text" class="search-input" v-model="searchQuery" placeholder="输入货架ID、名称或区域进行搜索"
+          @keyup.enter="searchShelves">
+        <button class="search-button" @click="searchShelves">搜索货架</button>
+        <button class="search-button search-clear" @click="clearSearch" v-if="isSearchActive">清除搜索</button>
+        <div class="search-result-status" v-if="isSearchActive">
+          找到 {{ filteredShelves.length }} 个匹配货架
+        </div>
       </div>
     </div>
 
-    <div class="controls">
-      <button @click="addShelf" :disabled="!designMode">添加新货架</button>
-      <button @click="clearLayout" :disabled="!designMode">清空布局</button>
-    </div>
-
-    <div class="shelf-controls" v-if="currentShelf !== null && designMode">
-      <div class="selected-shelf-info">
-        当前选中: 货架 #{{ shelves[currentShelf].id }} ({{ shelves[currentShelf].name }})
-      </div>
-      <div class="control-group">
-        <button class="shelf-edit-btn" @click="editShelfName(currentShelf)">
-          编辑名称
-        </button>
-        <button class="shelf-delete-btn" @click="deleteShelf(currentShelf)">
-          删除货架
-        </button>
-      </div>
-      <div class="control-group">
-        <button class="small" @click="setShelfSize('small')">
-          <span class="size-label small"></span> 小尺寸
-        </button>
-        <button class="medium" @click="setShelfSize('medium')">
-          <span class="size-label medium"></span> 中尺寸
-        </button>
-        <button class="large" @click="setShelfSize('large')">
-          <span class="size-label large"></span> 大尺寸
-        </button>
+    <div>
+      <div class="controls">
+        <button @click="addShelf" :disabled="!designMode">添加新货架</button>
+        <button @click="clearLayout" :disabled="!designMode">清空布局</button>
       </div>
     </div>
 
-    <div class="warehouse-container" :class="{'design-mode': designMode}" ref="warehouse">
+    <div v-if="currentShelf !== null && designMode">
+      <div class="shelf-controls">
+        <div class="selected-shelf-info">
+          当前选中: 货架 #{{ shelves[currentShelf].id }} ({{ shelves[currentShelf].name }})
+        </div>
+        <div class="control-group">
+          <button class="shelf-edit-btn" @click="editShelfName(currentShelf)">
+            编辑名称
+          </button>
+          <button class="shelf-delete-btn" @click="deleteShelf(currentShelf)">
+            删除货架
+          </button>
+        </div>
+        <div class="control-group">
+          <button class="small" @click="setShelfSize('small')">
+            <span class="size-label small"></span> 小尺寸
+          </button>
+          <button class="medium" @click="setShelfSize('medium')">
+            <span class="size-label medium"></span> 中尺寸
+          </button>
+          <button class="large" @click="setShelfSize('large')">
+            <span class="size-label large"></span> 大尺寸
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="warehouse-container" :class="{'design-mode': designMode}" ref="warehouseRef">
       <div class="resize-indicator" v-if="designMode">⤡</div>
       <div class="warehouse-size-info" v-if="designMode">
         {{ warehouseWidth }} × {{ warehouseHeight }} 像素
@@ -666,11 +672,13 @@
       </div>
     </div>
 
-    <div class="warehouse-size-presets" v-if="designMode">
-      <div v-for="preset in sizePresets" :key="preset.name" class="size-preset"
-        :class="{ active: warehouseWidth === preset.width && warehouseHeight === preset.height }"
-        @click="applyWarehouseSize(preset.width, preset.height)">
-        {{ preset.name }} ({{ preset.width }}×{{ preset.height }})
+    <div v-if="designMode">
+      <div class="warehouse-size-presets">
+        <div v-for="preset in sizePresets" :key="preset.name" class="size-preset"
+          :class="{ active: warehouseWidth === preset.width && warehouseHeight === preset.height }"
+          @click="applyWarehouseSize(preset.width, preset.height)">
+          {{ preset.name }} ({{ preset.width }}×{{ preset.height }})
+        </div>
       </div>
     </div>
 
@@ -785,7 +793,7 @@
         ]
       },
       mounted() {
-       
+
 
         // 监听鼠标移动和松开事件进行调整大小
         document.addEventListener('mousemove', this.onMouseMove)
@@ -794,7 +802,7 @@
         // 订阅拖动事件处理
         this.$nextTick(() => {
           // 确保在Vue更新DOM后绑定事件
-          const warehouseEl = this.$refs.warehouse
+          const warehouseEl = this.$refs.warehouseRef
           if (warehouseEl) {
             warehouseEl.addEventListener('mousedown', this.onWarehouseClick)
             // 初始化仓库尺寸
@@ -809,14 +817,14 @@
         document.removeEventListener('mousemove', this.onWarehouseResize)
         document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
 
-        const warehouseEl = this.$refs.warehouse
+        const warehouseEl = this.$refs.warehouseRef
         if (warehouseEl) {
           warehouseEl.removeEventListener('mousedown', this.onWarehouseClick)
         }
       },
       methods: {
         addShelf() {
-          const warehouseEl = this.$refs.warehouse
+          const warehouseEl = this.$refs.warehouseRef
           const width = 100
           const height = 80
 
@@ -832,11 +840,14 @@
         },
         saveLayout() {
           // 保存布局到LocalStorage
+          const warehouseEl = this.$refs.warehouseRef
+      
+
           const layoutData = {
             shelves: this.shelves,
             warehouseSize: {
-              width: this.warehouseWidth,
-              height: this.warehouseHeight
+              width: warehouseEl.style.width.replace('px', ''),
+              height: warehouseEl.style.height.replace('px', '')
             }
           }
           localStorage.setItem('warehouseLayout', JSON.stringify(layoutData))
@@ -844,13 +855,13 @@
         },
         toggleMode() {
           if (this.designMode) {
-            
+
 
             // 如果当前是设计模式，点击按钮就是保存布局并切换到查看模式
             this.saveLayout()
             this.designMode = false
           } else {
-          
+
             // 如果当前是查看模式，点击按钮就是切换到设计模式
             this.designMode = true
           }
@@ -888,7 +899,7 @@
         onDrag(event) {
           if (!this.isDragging || this.currentShelf === null) return
 
-          const warehouseEl = this.$refs.warehouse
+          const warehouseEl = this.$refs.warehouseRef
           const warehouseRect = warehouseEl.getBoundingClientRect()
           const shelf = this.shelves[this.currentShelf]
 
@@ -969,7 +980,7 @@
         },
         onWarehouseClick(event) {
           // 处理仓库容器的点击事件
-          if (event.target === this.$refs.warehouse) {
+          if (event.target === this.$refs.warehouseRef) {
             this.currentShelf = null
           }
         },
@@ -992,7 +1003,7 @@
           }
         },
         updateWarehouseSize() {
-          const warehouseEl = this.$refs.warehouse
+          const warehouseEl = this.$refs.warehouseRef
           if (warehouseEl) {
             // this.warehouseWidth = Math.round(warehouseEl.offsetWidth)
             // this.warehouseHeight = Math.round(warehouseEl.offsetHeight)
@@ -1002,7 +1013,7 @@
         },
 
         applyWarehouseSize(width, height) {
-          const warehouseEl = this.$refs.warehouse
+          const warehouseEl = this.$refs.warehouseRef
 
 
           if (warehouseEl && this.designMode) {
@@ -1021,7 +1032,7 @@
           this.isResizingWarehouse = true
           this.warehouseResizeDirection = direction
 
-          const warehouseEl = this.$refs.warehouse
+          const warehouseEl = this.$refs.warehouseRef
           this.startWidth = warehouseEl.offsetWidth
           this.startHeight = warehouseEl.offsetHeight
           this.startX = event.clientX
@@ -1037,7 +1048,7 @@
 
           const dx = event.clientX - this.startX
           const dy = event.clientY - this.startY
-          const warehouseEl = this.$refs.warehouse
+          const warehouseEl = this.$refs.warehouseRef
 
           let newWidth = this.startWidth
           let newHeight = this.startHeight
@@ -1111,7 +1122,7 @@
 
         // 查看货架库存
         viewShelfInventory(shelf) {
-          
+
           this.currentModalShelf = { ...shelf }
           this.modalType = 'inventory'
           this.modalTitle = `货架 #${shelf.id} (${shelf.name}) 库存信息`
@@ -1229,7 +1240,7 @@
             if (layoutData.warehouseSize) {
               this.warehouseWidth = layoutData.warehouseSize.width || 800
               this.warehouseHeight = layoutData.warehouseSize.height || 600
-              
+
             }
           } catch (e) {
             console.error('加载保存的布局失败', e)
