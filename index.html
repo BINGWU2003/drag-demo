@@ -26,7 +26,6 @@
       background-color: #fff;
       border: 2px solid #333;
       margin: 0 auto;
-      overflow: auto;
       background-image: linear-gradient(#eee 1px, transparent 1px),
         linear-gradient(90deg, #eee 1px, transparent 1px);
       background-size: 20px 20px;
@@ -1005,8 +1004,6 @@
         updateWarehouseSize() {
           const warehouseEl = this.$refs.warehouseRef
           if (warehouseEl) {
-            // this.warehouseWidth = Math.round(warehouseEl.offsetWidth)
-            // this.warehouseHeight = Math.round(warehouseEl.offsetHeight)
             warehouseEl.style.width = this.warehouseWidth + 'px'
             warehouseEl.style.height = this.warehouseHeight + 'px'
           }
