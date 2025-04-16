@@ -23,8 +23,6 @@
 
     .warehouse-container {
       position: relative;
-      width: 800px;
-      height: 600px;
       background-color: #fff;
       border: 2px solid #333;
       margin: 0 auto;
@@ -627,7 +625,7 @@
       </div>
     </div>
 
-    <div class="warehouse-container" :class="{'design-mode': designMode}" ref="warehouse" @resize="updateWarehouseSize">
+    <div class="warehouse-container" :class="{'design-mode': designMode}" ref="warehouse">
       <div class="resize-indicator" v-if="designMode">⤡</div>
       <div class="warehouse-size-info" v-if="designMode">
         {{ warehouseWidth }} × {{ warehouseHeight }} 像素
@@ -787,7 +785,7 @@
         ]
       },
       mounted() {
-        console.log(Element)
+       
 
         // 监听鼠标移动和松开事件进行调整大小
         document.addEventListener('mousemove', this.onMouseMove)
@@ -799,10 +797,6 @@
           const warehouseEl = this.$refs.warehouse
           if (warehouseEl) {
             warehouseEl.addEventListener('mousedown', this.onWarehouseClick)
-
-            // 添加resize事件监听
-            this.addResizeListener(warehouseEl, this.updateWarehouseSize)
-
             // 初始化仓库尺寸
             this.updateWarehouseSize()
           }
@@ -818,7 +812,6 @@
         const warehouseEl = this.$refs.warehouse
         if (warehouseEl) {
           warehouseEl.removeEventListener('mousedown', this.onWarehouseClick)
-          this.removeResizeListener(warehouseEl, this.updateWarehouseSize)
         }
       },
       methods: {
@@ -851,10 +844,13 @@
         },
         toggleMode() {
           if (this.designMode) {
+            
+
             // 如果当前是设计模式，点击按钮就是保存布局并切换到查看模式
             this.saveLayout()
             this.designMode = false
           } else {
+          
             // 如果当前是查看模式，点击按钮就是切换到设计模式
             this.designMode = true
           }
@@ -990,38 +986,25 @@
             shelf.x = centerX - newSize.width / 2
             shelf.y = centerY - newSize.height / 2
 
-            // 设置新尺寸
+            // 设置新尺寸R
             shelf.width = newSize.width
             shelf.height = newSize.height
           }
         },
-        // 添加自定义resize事件监听器（因为原生resize事件只在window对象上有效）
-        addResizeListener(element, callback) {
-          const resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-              callback(entry)
-            }
-          })
-          resizeObserver.observe(element)
-          this._resizeObserver = resizeObserver
-        },
-
-        removeResizeListener(element, callback) {
-          if (this._resizeObserver) {
-            this._resizeObserver.disconnect()
-          }
-        },
-
-        updateWarehouseSize(entry) {
+        updateWarehouseSize() {
           const warehouseEl = this.$refs.warehouse
           if (warehouseEl) {
-            this.warehouseWidth = Math.round(warehouseEl.offsetWidth)
-            this.warehouseHeight = Math.round(warehouseEl.offsetHeight)
+            // this.warehouseWidth = Math.round(warehouseEl.offsetWidth)
+            // this.warehouseHeight = Math.round(warehouseEl.offsetHeight)
+            warehouseEl.style.width = this.warehouseWidth + 'px'
+            warehouseEl.style.height = this.warehouseHeight + 'px'
           }
         },
 
         applyWarehouseSize(width, height) {
           const warehouseEl = this.$refs.warehouse
+
+
           if (warehouseEl && this.designMode) {
             warehouseEl.style.width = width + 'px'
             warehouseEl.style.height = height + 'px'
@@ -1128,7 +1111,7 @@
 
         // 查看货架库存
         viewShelfInventory(shelf) {
-          console.log(111)
+          
           this.currentModalShelf = { ...shelf }
           this.modalType = 'inventory'
           this.modalTitle = `货架 #${shelf.id} (${shelf.name}) 库存信息`
@@ -1139,7 +1122,7 @@
 
         // 修改货架款号
         editShelfSku(shelf) {
-          console.log(222)
+
           this.currentModalShelf = { ...shelf }
           this.modalType = 'sku'
           this.modalTitle = `修改货架 #${shelf.id} (${shelf.name}) 款号`
@@ -1204,7 +1187,7 @@
             this.shelves.splice(index, 1)
           }
         },
-        
+
         // 编辑货架名称
         editShelfName(index) {
           const shelf = this.shelves[index]
@@ -1244,12 +1227,9 @@
 
             // 恢复仓库尺寸
             if (layoutData.warehouseSize) {
-              this.$nextTick(() => {
-                this.applyWarehouseSize(
-                  layoutData.warehouseSize.width || 800,
-                  layoutData.warehouseSize.height || 600
-                )
-              })
+              this.warehouseWidth = layoutData.warehouseSize.width || 800
+              this.warehouseHeight = layoutData.warehouseSize.height || 600
+              
             }
           } catch (e) {
             console.error('加载保存的布局失败', e)
