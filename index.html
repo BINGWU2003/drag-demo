@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仓库货架布局演示</title>
+  <!-- 引入Vue2 -->
+  <script src="https://cdn.bootcdn.net/ajax/libs/vue/2.6.14/vue.min.js"></script>
+  <!-- 引入Element UI -->
+  <script src="https://cdn.bootcdn.net/ajax/libs/element-ui/2.15.13/index.min.js"></script>
+  <!-- 引入Element UI中文语言包 -->
+  <script src="https://cdn.bootcdn.net/ajax/libs/element-ui/2.15.13/locale/zh-CN.min.js"></script>
+  <!-- 引入Element UI CSS -->
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/element-ui/2.15.13/theme-chalk/index.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .warehouse-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      background-color: #fff;
+      border: 2px solid #333;
+      margin: 0 auto;
+      overflow: auto;
+      background-image: linear-gradient(#eee 1px, transparent 1px),
+        linear-gradient(90deg, #eee 1px, transparent 1px);
+      background-size: 20px 20px;
+      min-width: 400px;
+      min-height: 300px;
+      max-width: 1200px;
+      max-height: 800px;
+    }
+
+    .warehouse-container.design-mode {
+      resize: both;
+      /* 允许在设计模式下调整大小 */
+    }
+
+    .resize-edge {
+      position: absolute;
+      background-color: transparent;
+      z-index: 10;
+    }
+
+    .resize-edge.right {
+      top: 0;
+      right: 0;
+      width: 8px;
+      height: 100%;
+      cursor: e-resize;
+    }
+
+    .resize-edge.bottom {
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      cursor: s-resize;
+    }
+
+    .resize-edge.corner {
+      right: 0;
+      bottom: 0;
+      width: 15px;
+      height: 15px;
+      cursor: se-resize;
+    }
+
+    .resize-indicator {
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      width: 20px;
+      height: 20px;
+      color: #666;
+      font-size: 18px;
+      pointer-events: none;
+      /* 确保不干扰resize操作 */
+      display: none;
+    }
+
+    .warehouse-container.design-mode:hover .resize-indicator {
+      display: block;
+    }
+
+    .shelf {
+      position: absolute;
+      background-color: #ffd699;
+      border: 2px solid #ff9900;
+      border-radius: 4px;
+      cursor: move;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      z-index: 1;
+      user-select: none;
+      min-width: 60px;
+      min-height: 60px;
+      margin-bottom: 40px;
+      /* 添加底部边距，为操作按钮留出空间 */
+    }
+
+    .shelf.view-mode {
+      cursor: default;
+    }
+
+    .shelf-header {
+      background-color: #ff9900;
+      color: white;
+      padding: 4px;
+      font-size: 12px;
+      text-align: center;
+      cursor: move;
+    }
+
+    .shelf-body {
+      flex-grow: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+    }
+
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #666;
+      border-radius: 50%;
+      z-index: 2;
+    }
+
+    .resize-handle.nw {
+      top: -5px;
+      left: -5px;
+      cursor: nw-resize;
+    }
+
+    .resize-handle.ne {
+      top: -5px;
+      right: -5px;
+      cursor: ne-resize;
+    }
+
+    .resize-handle.sw {
+      bottom: -5px;
+      left: -5px;
+      cursor: sw-resize;
+    }
+
+    .resize-handle.se {
+      bottom: -5px;
+      right: -5px;
+      cursor: se-resize;
+    }
+
+    .ghost {
+      opacity: 0.5;
+      background-color: #c8ebfb !important;
+      border: 2px dashed #4a9ed1 !important;
+    }
+
+    .controls {
+      margin: 20px auto;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .mode-switch {
+      margin: 20px auto 10px;
+      max-width: 800px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .mode-button {
+      padding: 8px 15px;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+    }
+
+    .mode-button.design {
+      background-color: #4CAF50;
+    }
+
+    .mode-button.design:hover {
+      background-color: #45a049;
+    }
+
+    .mode-button.view {
+      background-color: #2196F3;
+    }
+
+    .mode-button.view:hover {
+      background-color: #0b7dda;
+    }
+
+    .mode-icon {
+      margin-right: 5px;
+      font-size: 16px;
+    }
+
+    .mode-status {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-left: 8px;
+    }
+
+    .mode-status.design {
+      background-color: #4CAF50;
+    }
+
+    .mode-status.view {
+      background-color: #2196F3;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 30px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 30px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.toggle-slider {
+      background-color: #4CAF50;
+    }
+
+    input:checked+.toggle-slider:before {
+      transform: translateX(30px);
+    }
+
+    .save-button {
+      margin-left: 10px;
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .save-button:hover {
+      background-color: #45a049;
+    }
+
+    .save-button:disabled {
+      background-color: #cccccc;
+      color: #888888;
+      cursor: not-allowed;
+    }
+
+    .info-panel {
+      max-width: 800px;
+      margin: 20px auto;
+      background-color: white;
+      padding: 15px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .shelf-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .shelf-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px auto;
+      max-width: 800px;
+      background-color: #f0f0f0;
+      padding: 10px 20px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .shelf-controls .control-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .shelf-controls .selected-shelf-info {
+      margin-right: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+    }
+
+    .shelf-edit-btn {
+      background-color: #409EFF;
+    }
+
+    .shelf-edit-btn:hover {
+      background-color: #66B1FF;
+    }
+
+    .shelf-delete-btn {
+      background-color: #F56C6C;
+    }
+
+    .shelf-delete-btn:hover {
+      background-color: #F78989;
+    }
+
+    .size-label {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 5px;
+      border-radius: 50%;
+    }
+
+    .size-label.small {
+      background-color: #2196F3;
+    }
+
+    .size-label.medium {
+      background-color: #ff9800;
+    }
+
+    .size-label.large {
+      background-color: #f44336;
+    }
+
+    button {
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      color: #888888;
+      cursor: not-allowed;
+    }
+
+    .warehouse-size-info {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #333;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .warehouse-size-presets {
+      display: flex;
+      justify-content: center;
+      margin: 10px auto;
+      gap: 10px;
+    }
+
+    .size-preset {
+      background-color: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .size-preset:hover {
+      background-color: #e0e0e0;
+    }
+
+    .size-preset.active {
+      background-color: #2196F3;
+      color: white;
+      border-color: #0b7dda;
+    }
+
+    .search-container {
+      display: flex;
+      align-items: center;
+      margin: 15px auto;
+      max-width: 800px;
+      background-color: #f0f0f0;
+      padding: 12px 15px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: #2196F3;
+      box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
+    }
+
+    .search-button {
+      margin-left: 10px;
+      background-color: #2196F3;
+      padding: 8px 15px;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .search-button:hover {
+      background-color: #0b7dda;
+    }
+
+    .search-clear {
+      background-color: #f44336;
+    }
+
+    .search-clear:hover {
+      background-color: #da190b;
+    }
+
+    .search-result-status {
+      margin-left: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .shelf.hidden {
+      display: none;
+    }
+
+    /* 货架操作选项样式 */
+    .shelf-options {
+      position: absolute;
+      top: 100%;
+      /* 改为100%，使其位于货架下方 */
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: center;
+      z-index: 10;
+      margin-top: 5px;
+      /* 添加上边距 */
+      white-space: nowrap;
+      /* 防止按钮换行 */
+      background-color: rgba(255, 255, 255, 0.9);
+      /* 添加半透明背景 */
+      padding: 5px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .shelf-option-btn {
+      margin: 0 5px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .view-inventory-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+
+    .view-inventory-btn:hover {
+      background-color: #1976D2;
+    }
+
+    .edit-sku-btn {
+      background-color: #FF9800;
+      color: white;
+    }
+
+    .edit-sku-btn:hover {
+      background-color: #F57C00;
+    }
+
+    /* 弹出层样式 */
+    .el-dialog__body {
+      padding: 10px 20px !important;
+    }
+
+    .el-table {
+      margin-bottom: 10px;
+    }
+
+    .el-table .selected-row {
+      background-color: #e3f2fd;
+    }
+
+    .el-dialog__header {
+      padding: 15px 20px !important;
+      border-bottom: 1px solid #eee;
+    }
+
+    .el-dialog__footer {
+      padding: 10px 20px 15px !important;
+      border-top: 1px solid #eee;
+    }
+
+    /* 货架操作按钮样式 */
+    .shelf-design-options {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <h1 style="text-align: center;">仓库货架布局管理</h1>
+
+    <div class="mode-switch">
+      <div class="current-mode" v-if="!designMode">
+        <span class="mode-status view"></span> 查看模式
+      </div>
+      <button class="mode-button" :class="designMode ? 'design' : 'view'" @click="toggleMode">
+        <span class="mode-icon">{{ designMode ? '💾' : '✏️' }}</span>
+        {{ designMode ? '保存布局' : '设计布局' }}
+      </button>
+    </div>
+
+    <!-- 搜索功能，只在查看模式显示 -->
+    <div class="search-container" v-if="!designMode">
+      <input type="text" class="search-input" v-model="searchQuery" placeholder="输入货架ID、名称或区域进行搜索"
+        @keyup.enter="searchShelves">
+      <button class="search-button" @click="searchShelves">搜索货架</button>
+      <button class="search-button search-clear" @click="clearSearch" v-if="isSearchActive">清除搜索</button>
+      <div class="search-result-status" v-if="isSearchActive">
+        找到 {{ filteredShelves.length }} 个匹配货架
+      </div>
+    </div>
+
+    <div class="controls">
+      <button @click="addShelf" :disabled="!designMode">添加新货架</button>
+      <button @click="clearLayout" :disabled="!designMode">清空布局</button>
+    </div>
+
+    <div class="shelf-controls" v-if="currentShelf !== null && designMode">
+      <div class="selected-shelf-info">
+        当前选中: 货架 #{{ shelves[currentShelf].id }} ({{ shelves[currentShelf].name }})
+      </div>
+      <div class="control-group">
+        <button class="shelf-edit-btn" @click="editShelfName(currentShelf)">
+          编辑名称
+        </button>
+        <button class="shelf-delete-btn" @click="deleteShelf(currentShelf)">
+          删除货架
+        </button>
+      </div>
+      <div class="control-group">
+        <button class="small" @click="setShelfSize('small')">
+          <span class="size-label small"></span> 小尺寸
+        </button>
+        <button class="medium" @click="setShelfSize('medium')">
+          <span class="size-label medium"></span> 中尺寸
+        </button>
+        <button class="large" @click="setShelfSize('large')">
+          <span class="size-label large"></span> 大尺寸
+        </button>
+      </div>
+    </div>
+
+    <div class="warehouse-container" :class="{'design-mode': designMode}" ref="warehouse" @resize="updateWarehouseSize">
+      <div class="resize-indicator" v-if="designMode">⤡</div>
+      <div class="warehouse-size-info" v-if="designMode">
+        {{ warehouseWidth }} × {{ warehouseHeight }} 像素
+      </div>
+
+      <!-- 添加调整大小的边缘处理，只在设计模式下显示 -->
+      <div v-if="designMode" class="resize-edge right" @mousedown.stop="startResizeWarehouse('right', $event)"></div>
+      <div v-if="designMode" class="resize-edge bottom" @mousedown.stop="startResizeWarehouse('bottom', $event)"></div>
+      <div v-if="designMode" class="resize-edge corner" @mousedown.stop="startResizeWarehouse('corner', $event)"></div>
+
+      <div v-for="(shelf, index) in shelves" :key="shelf.id" class="shelf" :class="{
+          'view-mode': !designMode, 
+          'hidden': !designMode && isSearchActive && !isShelfVisible(shelf)
+        }" :style="{ 
+          width: shelf.width + 'px', 
+          height: shelf.height + 'px',
+          left: shelf.x + 'px',
+          top: shelf.y + 'px'
+        }" @click.stop="designMode ? selectShelf(index) : showShelfOptions(shelf.id)">
+        <!-- <div class="shelf-header">货架 #{{ shelf.id }}</div> -->
+        <div class="shelf-body" @mousedown.stop="designMode && startDrag(index, $event)">{{ shelf.name }}</div>
+
+        <!-- 调整大小的四个手柄，只在设计模式显示 -->
+        <div v-if="designMode" class="resize-handle nw" @mousedown.stop="startResize(index, 'nw', $event)"></div>
+        <div v-if="designMode" class="resize-handle ne" @mousedown.stop="startResize(index, 'ne', $event)"></div>
+        <div v-if="designMode" class="resize-handle sw" @mousedown.stop="startResize(index, 'sw', $event)"></div>
+        <div v-if="designMode" class="resize-handle se" @mousedown.stop="startResize(index, 'se', $event)"></div>
+
+        <!-- 查看模式下点击货架显示的操作选项 -->
+        <div class="shelf-options" v-if="!designMode && selectedShelfId === shelf.id" @click.stop>
+          <button class="shelf-option-btn view-inventory-btn" @click.stop="viewShelfInventory(shelf)">
+            查看库存
+          </button>
+          <button class="shelf-option-btn edit-sku-btn" @click.stop="editShelfSku(shelf)">
+            修改款号
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="warehouse-size-presets" v-if="designMode">
+      <div v-for="preset in sizePresets" :key="preset.name" class="size-preset"
+        :class="{ active: warehouseWidth === preset.width && warehouseHeight === preset.height }"
+        @click="applyWarehouseSize(preset.width, preset.height)">
+        {{ preset.name }} ({{ preset.width }}×{{ preset.height }})
+      </div>
+    </div>
+
+    <div class="info-panel" v-if="shelves.length > 0">
+      <h3>货架布局信息</h3>
+      <div class="shelf-info" v-for="shelf in shelves" :key="'info-'+shelf.id">
+        <span>货架 #{{ shelf.id }} ({{ shelf.name }})</span>
+        <span>位置: X={{ shelf.x }}, Y={{ shelf.y }}, 宽={{ shelf.width }}, 高={{ shelf.height }}</span>
+      </div>
+    </div>
+
+    <!-- Element UI 替代原有弹窗 -->
+    <el-dialog :visible.sync="showModal" :title="modalTitle" width="500px" :before-close="closeModal"
+      :append-to-body="true" :close-on-click-modal="false" :close-on-press-escape="false" center>
+
+      <!-- 库存信息弹窗内容 -->
+      <template v-if="modalType === 'inventory'">
+        <el-table :data="modalData" style="width: 100%" :empty-text="'暂无库存数据'">
+          <el-table-column prop="sku" label="SKU" width="180">
+          </el-table-column>
+          <el-table-column prop="quantity" label="数量">
+          </el-table-column>
+        </el-table>
+      </template>
+
+      <!-- 修改款号弹窗内容 -->
+      <template v-if="modalType === 'sku'">
+        <el-table ref="skuTable" :data="modalData" style="width: 100%" highlight-current-row
+          @current-change="handleCurrentChange" :row-class-name="tableRowClassName">
+          <el-table-column prop="code" label="款号" width="180">
+          </el-table-column>
+          <el-table-column prop="status" label="状态">
+          </el-table-column>
+        </el-table>
+      </template>
+
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="closeModal">取 消</el-button>
+        <el-button v-if="modalType === 'sku'" type="primary" @click="saveShelfSku">确 定</el-button>
+      </span>
+    </el-dialog>
+  </div>
+
+  <!-- 引入Sortable -->
+  <script src="https://cdn.bootcdn.net/ajax/libs/Sortable/1.10.2/Sortable.min.js"></script>
+  <!-- 引入Vue.Draggable -->
+  <script src="https://cdn.bootcdn.net/ajax/libs/Vue.Draggable/2.24.3/vuedraggable.umd.min.js"></script>
+
+  <script>
+    // 使用Element UI
+    Vue.use(ELEMENT)
+    ELEMENT.locale(ELEMENT.lang.zhCN) // 设置语言为中文
+
+    new Vue({
+      el: '#app',
+      data: {
+        shelves: [
+          { id: 1, name: 'A区-1号', x: 50, y: 50, width: 100, height: 80, sku: 'SKU001', inventory: [{ sku: 'A1001', quantity: 50 }, { sku: 'A1002', quantity: 30 }] },
+          { id: 2, name: 'A区-2号', x: 200, y: 50, width: 120, height: 80, sku: 'SKU002', inventory: [{ sku: 'A2001', quantity: 20 }] },
+          { id: 3, name: 'B区-1号', x: 50, y: 200, width: 150, height: 100, sku: 'SKU003', inventory: [] },
+          { id: 4, name: 'B区-2号', x: 250, y: 200, width: 100, height: 150, sku: 'SKU004', inventory: [{ sku: 'B2001', quantity: 60 }, { sku: 'B2002', quantity: 45 }] }
+        ],
+        nextId: 5,
+        currentShelf: null,
+        isDragging: false,
+        isResizing: false,
+        isResizingWarehouse: false,
+        resizeDirection: null,
+        warehouseResizeDirection: null,
+        startX: 0,
+        startY: 0,
+        startWidth: 0,
+        startHeight: 0,
+        startTop: 0,
+        startLeft: 0,
+        dragOffsetX: 0,
+        dragOffsetY: 0,
+        shelfSizes: {
+          small: { width: 80, height: 60 },
+          medium: { width: 120, height: 90 },
+          large: { width: 180, height: 120 }
+        },
+        designMode: false, // 默认进入查看模式
+        warehouseWidth: 800,
+        warehouseHeight: 600,
+        sizePresets: [
+          { name: '小型仓库', width: 600, height: 400 },
+          { name: '中型仓库', width: 800, height: 600 },
+          { name: '大型仓库', width: 1000, height: 700 }
+        ],
+        searchQuery: '',
+        isSearchActive: false,
+        filteredShelves: [],
+        // 货架操作相关
+        selectedShelfId: null,
+        showModal: false,
+        modalType: '', // 'inventory' 或 'sku'
+        modalTitle: '',
+        modalData: [],
+        currentModalShelf: null,
+        selectedSkuIndex: -1,
+        // 写死的款号数据
+        skuList: [
+          { code: 'SKU001', status: '正常' },
+          { code: 'SKU002', status: '正常' },
+          { code: 'SKU003', status: '缺货' },
+          { code: 'SKU004', status: '正常' },
+          { code: 'SKU005', status: '停产' },
+          { code: 'SKU006', status: '正常' },
+          { code: 'SKU007', status: '新品' },
+          { code: 'SKU008', status: '热销' }
+        ]
+      },
+      mounted() {
+        console.log(Element)
+
+        // 监听鼠标移动和松开事件进行调整大小
+        document.addEventListener('mousemove', this.onMouseMove)
+        document.addEventListener('mouseup', this.onMouseUp)
+
+        // 订阅拖动事件处理
+        this.$nextTick(() => {
+          // 确保在Vue更新DOM后绑定事件
+          const warehouseEl = this.$refs.warehouse
+          if (warehouseEl) {
+            warehouseEl.addEventListener('mousedown', this.onWarehouseClick)
+
+            // 添加resize事件监听
+            this.addResizeListener(warehouseEl, this.updateWarehouseSize)
+
+            // 初始化仓库尺寸
+            this.updateWarehouseSize()
+          }
+        })
+      },
+      beforeDestroy() {
+        // 移除事件监听器
+        document.removeEventListener('mousemove', this.onMouseMove)
+        document.removeEventListener('mouseup', this.onMouseUp)
+        document.removeEventListener('mousemove', this.onWarehouseResize)
+        document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
+
+        const warehouseEl = this.$refs.warehouse
+        if (warehouseEl) {
+          warehouseEl.removeEventListener('mousedown', this.onWarehouseClick)
+          this.removeResizeListener(warehouseEl, this.updateWarehouseSize)
+        }
+      },
+      methods: {
+        addShelf() {
+          const warehouseEl = this.$refs.warehouse
+          const width = 100
+          const height = 80
+
+          this.shelves.push({
+            id: this.nextId,
+            name: `新货架-${this.nextId}`,
+            x: Math.random() * (warehouseEl.clientWidth - width),
+            y: Math.random() * (warehouseEl.clientHeight - height),
+            width: width,
+            height: height
+          })
+          this.nextId++
+        },
+        saveLayout() {
+          // 保存布局到LocalStorage
+          const layoutData = {
+            shelves: this.shelves,
+            warehouseSize: {
+              width: this.warehouseWidth,
+              height: this.warehouseHeight
+            }
+          }
+          localStorage.setItem('warehouseLayout', JSON.stringify(layoutData))
+          alert('货架布局已保存!')
+        },
+        toggleMode() {
+          if (this.designMode) {
+            // 如果当前是设计模式，点击按钮就是保存布局并切换到查看模式
+            this.saveLayout()
+            this.designMode = false
+          } else {
+            // 如果当前是查看模式，点击按钮就是切换到设计模式
+            this.designMode = true
+          }
+        },
+        clearLayout() {
+          if (!this.designMode) return
+
+          if (confirm('确定要清空当前布局吗?')) {
+            this.shelves = []
+            localStorage.removeItem('warehouseLayout')
+          }
+        },
+        selectShelf(index) {
+          if (!this.isDragging && !this.isResizing && this.designMode) {
+            this.currentShelf = index
+          }
+        },
+        startDrag(index, event) {
+          if (!this.designMode) return
+
+          event.preventDefault()
+          this.isDragging = true
+          this.currentShelf = index
+
+          const shelf = this.shelves[index]
+
+          // 计算鼠标点击位置与货架左上角的偏移量
+          this.dragOffsetX = event.clientX - shelf.x
+          this.dragOffsetY = event.clientY - shelf.y
+
+          // 添加鼠标移动和松开事件监听
+          document.addEventListener('mousemove', this.onDrag)
+          document.addEventListener('mouseup', this.onDragEnd)
+        },
+        onDrag(event) {
+          if (!this.isDragging || this.currentShelf === null) return
+
+          const warehouseEl = this.$refs.warehouse
+          const warehouseRect = warehouseEl.getBoundingClientRect()
+          const shelf = this.shelves[this.currentShelf]
+
+          // 计算新位置，考虑鼠标偏移量
+          let newX = event.clientX - this.dragOffsetX
+          let newY = event.clientY - this.dragOffsetY
+
+          // 限制在仓库容器内
+          newX = Math.max(0, Math.min(newX, warehouseRect.width - shelf.width))
+          newY = Math.max(0, Math.min(newY, warehouseRect.height - shelf.height))
+
+          // 更新货架位置
+          shelf.x = newX
+          shelf.y = newY
+        },
+        onDragEnd() {
+          this.isDragging = false
+          document.removeEventListener('mousemove', this.onDrag)
+          document.removeEventListener('mouseup', this.onDragEnd)
+        },
+        startResize(index, direction, event) {
+          if (!this.designMode) return
+
+          event.preventDefault()
+          event.stopPropagation()
+
+          this.isResizing = true
+          this.currentShelf = index
+          this.resizeDirection = direction
+
+          const shelf = this.shelves[index]
+          this.startWidth = shelf.width
+          this.startHeight = shelf.height
+          this.startX = event.clientX
+          this.startY = event.clientY
+          this.startLeft = shelf.x
+          this.startTop = shelf.y
+
+          // 添加鼠标移动和松开事件监听
+          document.addEventListener('mousemove', this.onMouseMove)
+          document.addEventListener('mouseup', this.onMouseUp)
+        },
+        onMouseMove(event) {
+          if (!this.isResizing || this.currentShelf === null) return
+
+          const dx = event.clientX - this.startX
+          const dy = event.clientY - this.startY
+          const shelf = this.shelves[this.currentShelf]
+
+          switch (this.resizeDirection) {
+            case 'se':
+              shelf.width = Math.max(60, this.startWidth + dx)
+              shelf.height = Math.max(60, this.startHeight + dy)
+              break
+            case 'sw':
+              shelf.width = Math.max(60, this.startWidth - dx)
+              shelf.x = this.startLeft + this.startWidth - shelf.width
+              shelf.height = Math.max(60, this.startHeight + dy)
+              break
+            case 'ne':
+              shelf.width = Math.max(60, this.startWidth + dx)
+              shelf.height = Math.max(60, this.startHeight - dy)
+              shelf.y = this.startTop + this.startHeight - shelf.height
+              break
+            case 'nw':
+              shelf.width = Math.max(60, this.startWidth - dx)
+              shelf.x = this.startLeft + this.startWidth - shelf.width
+              shelf.height = Math.max(60, this.startHeight - dy)
+              shelf.y = this.startTop + this.startHeight - shelf.height
+              break
+          }
+        },
+        onMouseUp() {
+          this.isResizing = false
+          this.resizeDirection = null
+          document.removeEventListener('mousemove', this.onMouseMove)
+          document.removeEventListener('mouseup', this.onMouseUp)
+        },
+        onWarehouseClick(event) {
+          // 处理仓库容器的点击事件
+          if (event.target === this.$refs.warehouse) {
+            this.currentShelf = null
+          }
+        },
+        setShelfSize(size) {
+          if (this.currentShelf !== null && this.shelfSizes[size]) {
+            const shelf = this.shelves[this.currentShelf]
+            const newSize = this.shelfSizes[size]
+
+            // 保持货架中心位置不变
+            const centerX = shelf.x + shelf.width / 2
+            const centerY = shelf.y + shelf.height / 2
+
+            // 计算新的左上角坐标
+            shelf.x = centerX - newSize.width / 2
+            shelf.y = centerY - newSize.height / 2
+
+            // 设置新尺寸
+            shelf.width = newSize.width
+            shelf.height = newSize.height
+          }
+        },
+        // 添加自定义resize事件监听器（因为原生resize事件只在window对象上有效）
+        addResizeListener(element, callback) {
+          const resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+              callback(entry)
+            }
+          })
+          resizeObserver.observe(element)
+          this._resizeObserver = resizeObserver
+        },
+
+        removeResizeListener(element, callback) {
+          if (this._resizeObserver) {
+            this._resizeObserver.disconnect()
+          }
+        },
+
+        updateWarehouseSize(entry) {
+          const warehouseEl = this.$refs.warehouse
+          if (warehouseEl) {
+            this.warehouseWidth = Math.round(warehouseEl.offsetWidth)
+            this.warehouseHeight = Math.round(warehouseEl.offsetHeight)
+          }
+        },
+
+        applyWarehouseSize(width, height) {
+          const warehouseEl = this.$refs.warehouse
+          if (warehouseEl && this.designMode) {
+            warehouseEl.style.width = width + 'px'
+            warehouseEl.style.height = height + 'px'
+            this.warehouseWidth = width
+            this.warehouseHeight = height
+          }
+        },
+        startResizeWarehouse(direction, event) {
+          if (!this.designMode) return
+
+          event.preventDefault()
+          event.stopPropagation()
+
+          this.isResizingWarehouse = true
+          this.warehouseResizeDirection = direction
+
+          const warehouseEl = this.$refs.warehouse
+          this.startWidth = warehouseEl.offsetWidth
+          this.startHeight = warehouseEl.offsetHeight
+          this.startX = event.clientX
+          this.startY = event.clientY
+
+          // 添加鼠标移动和松开事件监听
+          document.addEventListener('mousemove', this.onWarehouseResize)
+          document.addEventListener('mouseup', this.onWarehouseResizeEnd)
+        },
+
+        onWarehouseResize(event) {
+          if (!this.isResizingWarehouse || !this.designMode) return
+
+          const dx = event.clientX - this.startX
+          const dy = event.clientY - this.startY
+          const warehouseEl = this.$refs.warehouse
+
+          let newWidth = this.startWidth
+          let newHeight = this.startHeight
+
+          switch (this.warehouseResizeDirection) {
+            case 'right':
+              newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
+              break
+            case 'bottom':
+              newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
+              break
+            case 'corner':
+              newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
+              newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
+              break
+          }
+
+          warehouseEl.style.width = newWidth + 'px'
+          warehouseEl.style.height = newHeight + 'px'
+          this.warehouseWidth = newWidth
+          this.warehouseHeight = newHeight
+        },
+
+        onWarehouseResizeEnd() {
+          this.isResizingWarehouse = false
+          this.warehouseResizeDirection = null
+          document.removeEventListener('mousemove', this.onWarehouseResize)
+          document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
+        },
+
+        // 搜索功能
+        searchShelves() {
+          if (!this.searchQuery.trim()) {
+            this.clearSearch()
+            return
+          }
+
+          const query = this.searchQuery.toLowerCase()
+          this.filteredShelves = this.shelves.filter(shelf => {
+            const idMatch = shelf.id.toString().includes(query)
+            const nameMatch = shelf.name.toLowerCase().includes(query)
+            return idMatch || nameMatch
+          })
+
+          this.isSearchActive = true
+        },
+
+        clearSearch() {
+          this.searchQuery = ''
+          this.isSearchActive = false
+          this.filteredShelves = []
+        },
+
+        isShelfVisible(shelf) {
+          if (!this.isSearchActive) return true
+          return this.filteredShelves.some(s => s.id === shelf.id)
+        },
+
+        // 查看模式下的货架操作功能
+        showShelfOptions(shelfId) {
+          if (this.designMode) return
+
+          // 如果已选中的货架被再次点击，则清除选择
+          if (this.selectedShelfId === shelfId) {
+            this.selectedShelfId = null
+          } else {
+            // 否则选中新点击的货架
+            this.selectedShelfId = shelfId
+          }
+        },
+
+        // 查看货架库存
+        viewShelfInventory(shelf) {
+          console.log(111)
+          this.currentModalShelf = { ...shelf }
+          this.modalType = 'inventory'
+          this.modalTitle = `货架 #${shelf.id} (${shelf.name}) 库存信息`
+          this.modalData = shelf.inventory || []
+          this.showModal = true
+          this.selectedShelfId = null // 隐藏操作选项
+        },
+
+        // 修改货架款号
+        editShelfSku(shelf) {
+          console.log(222)
+          this.currentModalShelf = { ...shelf }
+          this.modalType = 'sku'
+          this.modalTitle = `修改货架 #${shelf.id} (${shelf.name}) 款号`
+          this.modalData = this.skuList
+
+          // 找到当前货架使用的款号在列表中的索引
+          this.selectedSkuIndex = this.skuList.findIndex(item => item.code === shelf.sku)
+
+          this.showModal = true
+          this.selectedShelfId = null // 隐藏操作选项
+
+          // 在下一个Vue更新周期中设置选中行
+          this.$nextTick(() => {
+            if (this.selectedSkuIndex >= 0 && this.$refs.skuTable) {
+              this.$refs.skuTable.setCurrentRow(this.modalData[this.selectedSkuIndex])
+            }
+          })
+        },
+
+        // 选择款号
+        handleCurrentChange(currentRow) {
+          if (currentRow) {
+            this.selectedSkuIndex = this.modalData.findIndex(s => s.code === currentRow.code)
+          } else {
+            this.selectedSkuIndex = -1
+          }
+        },
+
+        // Element UI表格行样式
+        tableRowClassName({ row, rowIndex }) {
+          if (this.selectedSkuIndex === rowIndex) {
+            return 'selected-row'
+          }
+          return ''
+        },
+
+        // 保存修改的款号
+        saveShelfSku() {
+          if (this.selectedSkuIndex >= 0 && this.selectedSkuIndex < this.modalData.length) {
+            const selectedSku = this.modalData[this.selectedSkuIndex]
+            const shelf = this.shelves.find(s => s.id === this.currentModalShelf.id)
+            if (shelf && selectedSku) {
+              shelf.sku = selectedSku.code
+              this.closeModal()
+            }
+          }
+        },
+
+        // 关闭弹窗
+        closeModal() {
+          this.showModal = false
+          this.modalType = ''
+          this.modalTitle = ''
+          this.modalData = []
+          this.currentModalShelf = null
+          this.selectedSkuIndex = -1
+        },
+
+        // 删除货架
+        deleteShelf(index) {
+          if (confirm('确定要删除这个货架吗？')) {
+            this.shelves.splice(index, 1)
+          }
+        },
+        
+        // 编辑货架名称
+        editShelfName(index) {
+          const shelf = this.shelves[index]
+          const newName = prompt('请输入新的货架名称：', shelf.name)
+          if (newName !== null && newName.trim() !== '') {
+            shelf.name = newName.trim()
+          }
+        }
+      },
+      created() {
+        // 确保初始状态下弹窗是关闭的
+        this.showModal = false
+        this.modalType = ''
+        this.modalTitle = ''
+        this.modalData = []
+        this.currentModalShelf = null
+        this.selectedSkuIndex = -1
+
+        // 尝试从LocalStorage加载保存的布局
+        const savedLayout = localStorage.getItem('warehouseLayout')
+        if (savedLayout) {
+          try {
+            const layoutData = JSON.parse(savedLayout)
+
+            if (layoutData.shelves && Array.isArray(layoutData.shelves) && layoutData.shelves.length > 0) {
+              // 确保每个货架都有库存和款号属性
+              layoutData.shelves.forEach(shelf => {
+                if (!shelf.inventory) shelf.inventory = []
+                if (!shelf.sku) shelf.sku = `SKU${shelf.id.toString().padStart(3, '0')}`
+              })
+
+              this.shelves = layoutData.shelves
+              // 更新nextId为最大ID+1
+              const maxId = Math.max(...layoutData.shelves.map(s => s.id))
+              this.nextId = maxId + 1
+            }
+
+            // 恢复仓库尺寸
+            if (layoutData.warehouseSize) {
+              this.$nextTick(() => {
+                this.applyWarehouseSize(
+                  layoutData.warehouseSize.width || 800,
+                  layoutData.warehouseSize.height || 600
+                )
+              })
+            }
+          } catch (e) {
+            console.error('加载保存的布局失败', e)
+          }
+        }
+      },
+      watch: {
+        designMode(newValue) {
+          // 当退出设计模式时，清除当前选中的货架
+          if (!newValue) {
+            this.currentShelf = null
+
+            // 确保退出设计模式时停止任何正在进行的调整大小操作
+            this.isResizingWarehouse = false
+            document.removeEventListener('mousemove', this.onWarehouseResize)
+            document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
+          } else {
+            // 进入设计模式时清除搜索和选中的货架
+            this.clearSearch()
+            this.selectedShelfId = null
+          }
+        }
+      }
+    });
+  </script>
+</body>
+
+</html>
