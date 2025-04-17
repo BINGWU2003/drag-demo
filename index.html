@@ -72,6 +72,7 @@
       min-height: 300px;
       max-width: 1200px;
       max-height: 800px;
+      transition: width 0.3s, height 0.3s;
     }
 
     .warehouse-container.design-mode {
@@ -135,17 +136,26 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       z-index: 1;
       user-select: none;
       min-width: 60px;
       min-height: 60px;
       margin-bottom: 40px;
-      /* 添加底部边距，为操作按钮留出空间 */
+      transition: box-shadow 0.3s;
+    }
+
+    .shelf:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
     .shelf.view-mode {
-      cursor: default;
+      cursor: pointer;
+    }
+
+    .shelf.selected {
+      border-color: #409EFF;
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3);
     }
 
     .shelf-header {
@@ -212,38 +222,154 @@
     }
 
     .mode-switch {
-      margin: 20px auto 10px;
       max-width: 800px;
       display: flex;
       justify-content: flex-end;
       align-items: center;
     }
 
+    /* 移除不再需要的按钮样式 */
     .mode-button {
-      padding: 8px 15px;
-      border: none;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
+      display: none;
+    }
+
+    /* 优化操作区样式 */
+    .operation-panel {
+      max-width: 800px;
+      margin: 15px auto;
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .operation-panel-header {
+      background-color: #f5f7fa;
+      padding: 10px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e6e6e6;
+    }
+
+    .operation-panel-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #303133;
+    }
+
+    .operation-panel-content {
+      padding: 15px;
+    }
+
+    /* 美化按钮样式 */
+    .el-button--primary {
+      background-color: #409EFF;
+      border-color: #409EFF;
+    }
+
+    .el-button--success {
+      background-color: #67C23A;
+      border-color: #67C23A;
+    }
+
+    .el-button--danger {
+      background-color: #F56C6C;
+      border-color: #F56C6C;
+    }
+
+    .el-button--warning {
+      background-color: #E6A23C;
+      border-color: #E6A23C;
+    }
+
+    .operation-button {
+      margin-right: 8px;
+    }
+
+    .operation-button i {
+      margin-right: 4px;
+    }
+
+    /* 移除不再需要的货架操作按钮样式 */
+    .shelf-action-btn {
+      display: none;
+    }
+
+    .operation-panel-footer {
+      background-color: #f5f7fa;
+      padding: 10px 15px;
+      display: flex;
+      justify-content: flex-end;
+      border-top: 1px solid #e6e6e6;
+    }
+
+    .operation-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .operation-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .operation-group {
       display: flex;
       align-items: center;
+      gap: 10px;
     }
 
-    .mode-button.design {
-      background-color: #4CAF50;
+    .operation-label {
+      font-weight: bold;
+      margin-right: 10px;
+      min-width: 80px;
     }
 
-    .mode-button.design:hover {
-      background-color: #45a049;
+    /* 优化货架操作按钮容器 */
+    .shelf-options {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: center;
+      z-index: 10;
+      margin-top: 5px;
+      white-space: nowrap;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 8px;
+      border-radius: 4px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .mode-button.view {
-      background-color: #2196F3;
+    /* 移除不再需要的按钮样式 */
+    .shelf-option-btn,
+    .view-inventory-btn,
+    .edit-sku-btn {
+      display: none;
     }
 
-    .mode-button.view:hover {
-      background-color: #0b7dda;
+    /* 优化货架按钮间距 */
+    .shelf-options .el-button {
+      margin: 0 4px;
+    }
+
+    .shelf-action-btn.add {
+      background-color: #67C23A;
+    }
+
+    .shelf-action-btn.add:hover {
+      background-color: #85ce61;
+    }
+
+    .shelf-action-btn.clear {
+      background-color: #F56C6C;
+    }
+
+    .shelf-action-btn.clear:hover {
+      background-color: #f78989;
     }
 
     .mode-icon {
@@ -339,7 +465,7 @@
       background-color: white;
       padding: 15px;
       border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
     }
 
     .shelf-info {
@@ -348,6 +474,22 @@
       margin-bottom: 8px;
       padding-bottom: 8px;
       border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    .info-panel-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #303133;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .info-panel-actions {
+      display: flex;
+      gap: 10px;
     }
 
     .shelf-controls {
@@ -449,6 +591,11 @@
       justify-content: center;
       margin: 10px auto;
       gap: 10px;
+      max-width: 800px;
+      padding: 10px;
+      background-color: #f5f7fa;
+      border-radius: 4px;
+      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
     }
 
     .size-preset {
@@ -476,53 +623,27 @@
       align-items: center;
       margin: 15px auto;
       max-width: 800px;
-      background-color: #f0f0f0;
-      padding: 12px 15px;
+      background-color: transparent;
+      padding: 0;
       border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: none;
     }
 
-    .search-input {
-      flex: 1;
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-      outline: none;
-    }
-
-    .search-input:focus {
-      border-color: #2196F3;
-      box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
-    }
-
-    .search-button {
-      margin-left: 10px;
-      background-color: #2196F3;
-      padding: 8px 15px;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .search-button:hover {
-      background-color: #0b7dda;
-    }
-
+    /* 移除不再需要的搜索按钮样式 */
+    .search-button,
+    .search-input,
     .search-clear {
-      background-color: #f44336;
+      display: none;
     }
 
-    .search-clear:hover {
-      background-color: #da190b;
-    }
-
+    /* 调整搜索结果显示 */
     .search-result-status {
       margin-left: 10px;
       font-size: 14px;
       color: #555;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .shelf.hidden {
@@ -605,6 +726,44 @@
     .shelf-design-options {
       display: none;
     }
+
+    /* 弹框内容样式优化 */
+    .inventory-details-modal-content,
+    .product-modal-content {
+      height: 500px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .inventory-details-modal-content-header,
+    .product-modal-content-header {
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      font-weight: bold;
+      color: #303133;
+    }
+
+    .inventory-details-modal-content-body,
+    .product-modal-content-body {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .inventory-details-modal-content-body-item,
+    .product-modal-content-body-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background-color 0.2s;
+    }
+
+    .inventory-details-modal-content-body-item:hover,
+    .product-modal-content-body-item:hover {
+      background-color: #f5f7fa;
+    }
   </style>
 </head>
 
@@ -612,59 +771,75 @@
   <div id="app">
     <h1 style="text-align: center;">仓库货架布局管理</h1>
 
-    <div class="mode-switch">
-      <div class="current-mode" v-if="!designMode">
-        <span class="mode-status view"></span> 查看模式
+    <!-- 重构操作区，使用新的样式 -->
+    <div class="operation-panel">
+      <div class="operation-panel-header">
+        <div class="operation-panel-title">操作面板</div>
+        <div class="mode-switch">
+          <el-button :type="designMode ? 'success' : 'primary'" size="small" @click="toggleMode"
+            :icon="designMode ? 'el-icon-check' : 'el-icon-edit'">
+            {{ designMode ? '保存布局' : '设计布局' }}
+          </el-button>
+          </div>
       </div>
-      <button class="mode-button" :class="designMode ? 'design' : 'view'" @click="toggleMode">
-        <span class="mode-icon">{{ designMode ? '💾' : '✏️' }}</span>
-        {{ designMode ? '保存布局' : '设计布局' }}
-      </button>
-    </div>
-
-    <!-- 搜索功能，只在查看模式显示 -->
-    <div v-if="!designMode">
-      <div class="search-container">
-        <input type="text" class="search-input" v-model="searchQuery" placeholder="输入货架ID、名称或区域进行搜索"
-          @keyup.enter="searchShelves">
-        <button class="search-button" @click="searchShelves">搜索货架</button>
-        <button class="search-button search-clear" @click="clearSearch" v-if="isSearchActive">清除搜索</button>
-        <div class="search-result-status" v-if="isSearchActive">
-          找到 {{ filteredShelves.length }} 个匹配货架
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="controls">
-        <button @click="addShelf" :disabled="!designMode">添加新货架</button>
-        <button @click="clearLayout" :disabled="!designMode">清空布局</button>
-      </div>
-    </div>
-
-    <div v-if="currentShelf !== null && designMode">
-      <div class="shelf-controls">
-        <div class="selected-shelf-info">
-          当前选中: 货架 #{{ shelves[currentShelf].id }} ({{ shelves[currentShelf].name }})
-        </div>
-        <div class="control-group">
-          <button class="shelf-edit-btn" @click="editShelfName(currentShelf)">
-            编辑名称
-          </button>
-          <button class="shelf-delete-btn" @click="deleteShelf(currentShelf)">
-            删除货架
-          </button>
-        </div>
-        <div class="control-group">
-          <button class="small" @click="setShelfSize('small')">
-            <span class="size-label small"></span> 小尺寸
-          </button>
-          <button class="medium" @click="setShelfSize('medium')">
-            <span class="size-label medium"></span> 中尺寸
-          </button>
-          <button class="large" @click="setShelfSize('large')">
-            <span class="size-label large"></span> 大尺寸
-          </button>
+      <div class="operation-panel-content">
+        <!-- 设计模式下的操作 -->
+        <div v-if="designMode">
+          <div class="operation-row">
+            <div class="operation-group">
+              <div class="operation-label">货架操作:</div>
+              <el-button type="success" size="small" icon="el-icon-plus" @click="addShelf">
+                添加新货架
+              </el-button>
+              <el-button type="danger" size="small" icon="el-icon-delete" @click="clearLayout">
+                清空布局
+              </el-button>
+            </div>
+            <div class="operation-group" v-if="currentShelf !== null">
+              <div class="operation-label">尺寸设置:</div>
+              <el-button size="small" @click="setShelfSize('small')" type="primary" plain>
+                <span class="size-label small"></span> 小尺寸
+              </el-button>
+              <el-button size="small" @click="setShelfSize('medium')" type="warning" plain>
+                <span class="size-label medium"></span> 中尺寸
+              </el-button>
+              <el-button size="small" @click="setShelfSize('large')" type="danger" plain>
+                <span class="size-label large"></span> 大尺寸
+              </el-button>
+            </div>
+          </div>
+          <div class="operation-row" v-if="currentShelf !== null">
+            <div class="operation-group">
+              <div class="operation-label">当前选中:</div>
+              <div class="selected-shelf-info">
+                <el-tag type="success">货架 #{{ shelves[currentShelf].id }}</el-tag>
+                <span style="margin-left: 5px;">{{ shelves[currentShelf].name }}</span>
+                </div>
+            </div>
+            <div class="operation-group">
+              <el-button size="small" type="primary" icon="el-icon-edit" @click="editShelfName(currentShelf)">
+                编辑名称
+              </el-button>
+              <el-button size="small" type="danger" icon="el-icon-delete" @click="deleteShelf(currentShelf)">
+                删除货架
+              </el-button>
+              </div>
+          </div>
+          </div>
+          <!-- 查看模式下的操作 -->
+          <div v-else>
+            <div class="operation-row">
+              <div class="search-container" style="margin: 0; flex: 1; box-shadow: none; background: transparent;">
+                <el-input v-model="searchQuery" placeholder="输入货架ID、名称或区域进行搜索" prefix-icon="el-icon-search" clearable
+                  @keyup.enter.native="searchShelves" style="width: 100%;">
+                  <el-button slot="append" icon="el-icon-search" @click="searchShelves">搜索</el-button>
+                </el-input>
+              </div>
+              <div class="search-result-status" v-if="isSearchActive">
+                <el-tag type="info">找到 {{ filteredShelves.length }} 个匹配货架</el-tag>
+                <el-button type="text" icon="el-icon-close" @click="clearSearch">清除搜索</el-button>
+              </div>
+            </div>
         </div>
       </div>
     </div>
@@ -682,7 +857,8 @@
 
       <div v-for="(shelf, index) in shelves" :key="shelf.id" class="shelf" :class="{
           'view-mode': !designMode, 
-          'hidden': !designMode && isSearchActive && !isShelfVisible(shelf)
+          'hidden': !designMode && isSearchActive && !isShelfVisible(shelf),
+          'selected': currentShelf === index && designMode
         }" :style="{ 
           width: shelf.width + 'px', 
           height: shelf.height + 'px',
@@ -700,32 +876,60 @@
 
         <!-- 查看模式下点击货架显示的操作选项 -->
         <div class="shelf-options" v-if="!designMode && selectedShelfId === shelf.id" @click.stop>
-          <button class="shelf-option-btn view-inventory-btn" @click.stop="viewShelfInventory(shelf)">
+          <el-button size="mini" type="primary" icon="el-icon-document" @click.stop="viewShelfInventory(shelf)">
             查看库存
-          </button>
-          <button class="shelf-option-btn edit-sku-btn" @click.stop="editShelfSku(shelf)">
+          </el-button>
+          <el-button size="mini" type="warning" icon="el-icon-edit" @click.stop="editShelfSku(shelf)">
             修改款号
-          </button>
+          </el-button>
         </div>
       </div>
     </div>
 
     <div v-if="designMode">
       <div class="warehouse-size-presets">
-        <div v-for="preset in sizePresets" :key="preset.name" class="size-preset"
-          :class="{ active: warehouseWidth === preset.width && warehouseHeight === preset.height }"
-          @click="applyWarehouseSize(preset.width, preset.height)">
-          {{ preset.name }} ({{ preset.width }}×{{ preset.height }})
+        <div class="info-panel-title" style="margin-bottom: 10px;">
+          <span>仓库尺寸预设</span>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+          <el-button size="small" v-for="preset in sizePresets" :key="preset.name"
+            :type="warehouseWidth === preset.width && warehouseHeight === preset.height ? 'primary' : 'info'"
+            @click="applyWarehouseSize(preset.width, preset.height)" plain>
+            {{ preset.name }} ({{ preset.width }}×{{ preset.height }})
+          </el-button>
         </div>
       </div>
     </div>
 
     <div class="info-panel" v-if="shelves.length > 0">
-      <h3>货架布局信息</h3>
-      <div class="shelf-info" v-for="shelf in shelves" :key="'info-'+shelf.id">
-        <span>货架 #{{ shelf.id }} ({{ shelf.name }})</span>
-        <span>位置: X={{ shelf.x }}, Y={{ shelf.y }}, 宽={{ shelf.width }}, 高={{ shelf.height }}</span>
+      <div class="info-panel-title">
+        <span>货架布局信息</span>
+        <div class="info-panel-actions">
+          <el-button size="mini" type="text" icon="el-icon-refresh" @click="refreshShelfInfo">刷新</el-button>
+          <el-switch v-model="showDetailedInfo" active-text="详细信息" inactive-text="简略信息">
+          </el-switch>
+        </div>
       </div>
+      <el-table :data="shelves" style="width: 100%" size="mini" border>
+        <el-table-column prop="id" label="ID" width="60" sortable></el-table-column>
+        <el-table-column prop="name" label="名称" width="150"></el-table-column>
+        <el-table-column label="位置" width="200">
+          <template slot-scope="scope">
+            X: {{ scope.row.x }}, Y: {{ scope.row.y }}
+          </template>
+        </el-table-column>
+        <el-table-column label="尺寸" width="150">
+          <template slot-scope="scope">
+            {{ scope.row.width }} × {{ scope.row.height }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="sku" label="款号" width="100" v-if="showDetailedInfo"></el-table-column>
+        <el-table-column label="库存" v-if="showDetailedInfo">
+          <template slot-scope="scope">
+            {{ scope.row.inventory.length }} 种产品
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
 
     <el-dialog :visible.sync="showModal.showInventoryDetailsModal" title="货架库存详情" width="500px" :before-close="closeModal"
@@ -742,20 +946,20 @@
           </div>
         </div>
       </div>
-      </el-dialog>
-      <el-dialog :visible.sync="showModal.showEditSkuModal" title="修改货架款号" width="500px" :before-close="closeModal"
-        :append-to-body="true" :close-on-click-modal="false" :close-on-press-escape="false" center>
-        <div class="product-modal-content">
-          <div class="product-modal-content-header">
-            <span>{{ modalTitle.editSkuModalTitle }}</span>
-          </div>
-          <div class="product-modal-content-body" v-infinite-scroll="loadInventoryDetailsModalData">
-            <div class="product-modal-content-body-item" v-for="(item,index) in inventoryDetailsModalData" :key="index">
-              <span>SKU001</span>
-              <span>100</span>
-            </div>
+    </el-dialog>
+    <el-dialog :visible.sync="showModal.showEditSkuModal" title="修改货架款号" width="500px" :before-close="closeModal"
+      :append-to-body="true" :close-on-click-modal="false" :close-on-press-escape="false" center>
+      <div class="product-modal-content">
+        <div class="product-modal-content-header">
+          <span>{{ modalTitle.editSkuModalTitle }}</span>
+        </div>
+        <div class="product-modal-content-body" v-infinite-scroll="loadInventoryDetailsModalData">
+          <div class="product-modal-content-body-item" v-for="(item,index) in inventoryDetailsModalData" :key="index">
+            <span>SKU001</span>
+            <span>100</span>
           </div>
         </div>
+      </div>
     </el-dialog>
   </div>
 
@@ -833,7 +1037,8 @@
           { code: 'SKU006', status: '正常' },
           { code: 'SKU007', status: '新品' },
           { code: 'SKU008', status: '热销' }
-        ]
+        ],
+        showDetailedInfo: true
       },
       mounted() {
         console.log(document)
@@ -887,6 +1092,13 @@
             height: height
           })
           this.nextId++
+
+          // 显示添加成功提示
+          this.$message({
+            message: '新货架添加成功',
+            type: 'success',
+            duration: 1500
+          })
         },
         saveLayout() {
           // 保存布局到LocalStorage
@@ -919,10 +1131,23 @@
         clearLayout() {
           if (!this.designMode) return
 
-          if (confirm('确定要清空当前布局吗?')) {
+          this.$confirm('确定要清空当前布局吗? 此操作不可逆', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(() => {
             this.shelves = []
             localStorage.removeItem('warehouseLayout')
-          }
+            this.$message({
+              type: 'success',
+              message: '布局已清空'
+            })
+          }).catch(() => {
+            this.$message({
+              type: 'info',
+              message: '已取消清空操作'
+            })
+          })
         },
         selectShelf(index) {
           if (!this.isDragging && !this.isResizing && this.designMode) {
@@ -1278,18 +1503,50 @@
 
         // 删除货架
         deleteShelf(index) {
-          if (confirm('确定要删除这个货架吗？')) {
+          this.$confirm('确定要删除这个货架吗?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(() => {
             this.shelves.splice(index, 1)
-          }
+            this.currentShelf = null
+            this.$message({
+              type: 'success',
+              message: '货架已删除'
+            })
+          }).catch(() => {
+            this.$message({
+              type: 'info',
+              message: '已取消删除操作'
+            })
+          })
         },
 
         // 编辑货架名称
         editShelfName(index) {
           const shelf = this.shelves[index]
-          const newName = prompt('请输入新的货架名称：', shelf.name)
-          if (newName !== null && newName.trim() !== '') {
-            shelf.name = newName.trim()
-          }
+          this.$prompt('请输入新的货架名称', '编辑货架名称', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            inputValue: shelf.name,
+            inputPattern: /\S+/,
+            inputErrorMessage: '货架名称不能为空'
+          }).then(({ value }) => {
+            shelf.name = value.trim()
+            this.$message({
+              type: 'success',
+              message: '货架名称已更新'
+            })
+          }).catch(() => {
+            this.$message({
+              type: 'info',
+              message: '已取消编辑'
+            })
+          })
+        },
+        refreshShelfInfo() {
+          // 实现刷新货架信息的逻辑
+          console.log('刷新货架信息')
         }
       },
       created() {
