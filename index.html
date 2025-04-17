@@ -792,17 +792,19 @@
         ]
       },
       mounted() {
+        console.log(document)
 
-
-        // 监听鼠标移动和松开事件进行调整大小
+        // 全局监听鼠标事件，用于处理货架调整大小
+        // 在document级别监听可确保即使鼠标移出货架元素，也能持续捕获鼠标移动
         document.addEventListener('mousemove', this.onMouseMove)
         document.addEventListener('mouseup', this.onMouseUp)
 
-        // 订阅拖动事件处理
+        // 在DOM更新后初始化事件和尺寸
         this.$nextTick(() => {
           // 确保在Vue更新DOM后绑定事件
           const warehouseEl = this.$refs.warehouseRef
           if (warehouseEl) {
+            // 监听仓库容器的点击事件，用于取消选中货架
             warehouseEl.addEventListener('mousedown', this.onWarehouseClick)
             // 初始化仓库尺寸
             this.updateWarehouseSize()
@@ -810,12 +812,14 @@
         })
       },
       beforeDestroy() {
-        // 移除事件监听器
+        // 组件销毁前移除所有事件监听器，防止内存泄漏
+        // 移除document上的全局事件监听
         document.removeEventListener('mousemove', this.onMouseMove)
         document.removeEventListener('mouseup', this.onMouseUp)
         document.removeEventListener('mousemove', this.onWarehouseResize)
         document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
 
+        // 移除仓库容器上的事件监听
         const warehouseEl = this.$refs.warehouseRef
         if (warehouseEl) {
           warehouseEl.removeEventListener('mousedown', this.onWarehouseClick)
@@ -840,7 +844,7 @@
         saveLayout() {
           // 保存布局到LocalStorage
           const warehouseEl = this.$refs.warehouseRef
-      
+
 
           const layoutData = {
             shelves: this.shelves,
@@ -879,23 +883,26 @@
           }
         },
         startDrag(index, event) {
-          if (!this.designMode) return
+          if (!this.designMode) return  // 非设计模式下不允许拖动
 
-          event.preventDefault()
-          this.isDragging = true
-          this.currentShelf = index
+          event.preventDefault()  // 阻止默认事件处理
+          this.isDragging = true  // 设置拖动状态
+          this.currentShelf = index  // 设置当前选中的货架索引
 
           const shelf = this.shelves[index]
 
           // 计算鼠标点击位置与货架左上角的偏移量
+          // 保存这个偏移量是为了在拖动过程中保持鼠标相对于货架的位置不变
           this.dragOffsetX = event.clientX - shelf.x
           this.dragOffsetY = event.clientY - shelf.y
 
-          // 添加鼠标移动和松开事件监听
+          // 在document上添加事件监听，确保鼠标移出元素后仍能捕获事件
+          // 这样即使用户快速移动鼠标，拖动也能持续进行
           document.addEventListener('mousemove', this.onDrag)
           document.addEventListener('mouseup', this.onDragEnd)
         },
         onDrag(event) {
+          // 如果不在拖动状态或没有选中货架，则直接返回
           if (!this.isDragging || this.currentShelf === null) return
 
           const warehouseEl = this.$refs.warehouseRef
@@ -903,10 +910,11 @@
           const shelf = this.shelves[this.currentShelf]
 
           // 计算新位置，考虑鼠标偏移量
+          // 减去初始点击的偏移量，确保拖动感觉自然
           let newX = event.clientX - this.dragOffsetX
           let newY = event.clientY - this.dragOffsetY
 
-          // 限制在仓库容器内
+          // 限制在仓库容器内，防止货架被拖出边界
           newX = Math.max(0, Math.min(newX, warehouseRect.width - shelf.width))
           newY = Math.max(0, Math.min(newY, warehouseRect.height - shelf.height))
 
@@ -915,65 +923,84 @@
           shelf.y = newY
         },
         onDragEnd() {
+          // 拖动结束，重置拖动状态
           this.isDragging = false
+          // 移除document上的事件监听，防止内存泄漏
+          // 拖动结束后不再需要监听这些事件
           document.removeEventListener('mousemove', this.onDrag)
           document.removeEventListener('mouseup', this.onDragEnd)
         },
         startResize(index, direction, event) {
-          if (!this.designMode) return
+          if (!this.designMode) return  // 非设计模式下不允许调整大小
 
-          event.preventDefault()
-          event.stopPropagation()
+          event.preventDefault()  // 阻止默认事件
+          event.stopPropagation() // 阻止事件冒泡，防止触发父元素事件
 
+          // 设置调整大小状态
           this.isResizing = true
           this.currentShelf = index
-          this.resizeDirection = direction
+          this.resizeDirection = direction  // 设置调整方向（nw:左上, ne:右上, sw:左下, se:右下）
 
           const shelf = this.shelves[index]
+          // 记录初始宽高值，用于计算调整后的尺寸
           this.startWidth = shelf.width
           this.startHeight = shelf.height
+          // 记录鼠标点击位置，用于计算移动距离
           this.startX = event.clientX
           this.startY = event.clientY
+          // 记录货架左上角位置，用于调整左上角位置
           this.startLeft = shelf.x
           this.startTop = shelf.y
 
-          // 添加鼠标移动和松开事件监听
+          // 在document上添加事件监听，确保鼠标移出元素后仍能捕获事件
           document.addEventListener('mousemove', this.onMouseMove)
           document.addEventListener('mouseup', this.onMouseUp)
         },
         onMouseMove(event) {
+          // 如果不在调整大小状态或没有选中货架，则直接返回
           if (!this.isResizing || this.currentShelf === null) return
 
+          // 计算鼠标相对于起始位置的移动距离
           const dx = event.clientX - this.startX
           const dy = event.clientY - this.startY
+          console.log(dx, dy)
+
+          // 获取当前正在调整的货架
           const shelf = this.shelves[this.currentShelf]
 
+          // 根据不同的调整方向，更新货架尺寸和位置
           switch (this.resizeDirection) {
+            // 右下角拖动：增加宽度和高度，位置不变
             case 'se':
-              shelf.width = Math.max(60, this.startWidth + dx)
-              shelf.height = Math.max(60, this.startHeight + dy)
+              shelf.width = Math.max(60, this.startWidth + dx)  // 保证最小宽度为60px
+              shelf.height = Math.max(60, this.startHeight + dy)  // 保证最小高度为60px
               break
+            // 左下角拖动：减少宽度，增加高度，调整x坐标
             case 'sw':
-              shelf.width = Math.max(60, this.startWidth - dx)
-              shelf.x = this.startLeft + this.startWidth - shelf.width
-              shelf.height = Math.max(60, this.startHeight + dy)
+              shelf.width = Math.max(60, this.startWidth - dx)  // 向左拖动增加宽度，向右拖动减少宽度
+              shelf.x = this.startLeft + this.startWidth - shelf.width  // 调整x坐标保持右边界位置不变
+              shelf.height = Math.max(60, this.startHeight + dy)  // 向下拖动增加高度
               break
+            // 右上角拖动：增加宽度，减少高度，调整y坐标
             case 'ne':
-              shelf.width = Math.max(60, this.startWidth + dx)
-              shelf.height = Math.max(60, this.startHeight - dy)
-              shelf.y = this.startTop + this.startHeight - shelf.height
+              shelf.width = Math.max(60, this.startWidth + dx)  // 向右拖动增加宽度
+              shelf.height = Math.max(60, this.startHeight - dy)  // 向上拖动增加高度，向下拖动减少高度
+              shelf.y = this.startTop + this.startHeight - shelf.height  // 调整y坐标保持下边界位置不变
               break
+            // 左上角拖动：减少宽度和高度，同时调整x和y坐标
             case 'nw':
-              shelf.width = Math.max(60, this.startWidth - dx)
-              shelf.x = this.startLeft + this.startWidth - shelf.width
-              shelf.height = Math.max(60, this.startHeight - dy)
-              shelf.y = this.startTop + this.startHeight - shelf.height
+              shelf.width = Math.max(60, this.startWidth - dx)  // 向左拖动增加宽度，向右拖动减少宽度
+              shelf.x = this.startLeft + this.startWidth - shelf.width  // 调整x坐标保持右边界位置不变
+              shelf.height = Math.max(60, this.startHeight - dy)  // 向上拖动增加高度，向下拖动减少高度
+              shelf.y = this.startTop + this.startHeight - shelf.height  // 调整y坐标保持下边界位置不变
               break
           }
         },
         onMouseUp() {
+          // 调整大小结束，重置状态
           this.isResizing = false
           this.resizeDirection = null
+          // 移除document上的事件监听，防止内存泄漏
           document.removeEventListener('mousemove', this.onMouseMove)
           document.removeEventListener('mouseup', this.onMouseUp)
         },
@@ -1021,28 +1048,35 @@
           }
         },
         startResizeWarehouse(direction, event) {
-          if (!this.designMode) return
+          console.log('startResizeWarehouse', direction, event)
 
-          event.preventDefault()
-          event.stopPropagation()
+          if (!this.designMode) return  // 非设计模式下不允许调整仓库大小
 
+          event.preventDefault()  // 阻止默认事件
+          event.stopPropagation() // 阻止事件冒泡，防止触发容器的点击事件
+
+          // 设置仓库调整状态
           this.isResizingWarehouse = true
-          this.warehouseResizeDirection = direction
+          this.warehouseResizeDirection = direction  // 设置调整方向（right, bottom, corner）
 
           const warehouseEl = this.$refs.warehouseRef
+          // 记录仓库初始尺寸
           this.startWidth = warehouseEl.offsetWidth
           this.startHeight = warehouseEl.offsetHeight
+          // 记录鼠标起始位置
           this.startX = event.clientX
           this.startY = event.clientY
 
-          // 添加鼠标移动和松开事件监听
+          // 在document上添加事件监听，确保鼠标移出元素后仍能捕获事件
           document.addEventListener('mousemove', this.onWarehouseResize)
           document.addEventListener('mouseup', this.onWarehouseResizeEnd)
         },
 
         onWarehouseResize(event) {
+          // 如果不在调整仓库大小状态或不在设计模式，则直接返回
           if (!this.isResizingWarehouse || !this.designMode) return
 
+          // 计算鼠标相对于起始位置的移动距离
           const dx = event.clientX - this.startX
           const dy = event.clientY - this.startY
           const warehouseEl = this.$refs.warehouseRef
@@ -1050,19 +1084,24 @@
           let newWidth = this.startWidth
           let newHeight = this.startHeight
 
+          // 根据不同的调整方向更新尺寸
           switch (this.warehouseResizeDirection) {
             case 'right':
+              // 只调整宽度，限制在最小400px和最大1200px之间
               newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
               break
             case 'bottom':
+              // 只调整高度，限制在最小300px和最大800px之间
               newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
               break
             case 'corner':
+              // 同时调整宽度和高度
               newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
               newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
               break
           }
 
+          // 更新仓库容器尺寸
           warehouseEl.style.width = newWidth + 'px'
           warehouseEl.style.height = newHeight + 'px'
           this.warehouseWidth = newWidth
@@ -1070,8 +1109,10 @@
         },
 
         onWarehouseResizeEnd() {
+          // 仓库调整大小结束，重置状态
           this.isResizingWarehouse = false
           this.warehouseResizeDirection = null
+          // 移除document上的事件监听，防止内存泄漏
           document.removeEventListener('mousemove', this.onWarehouseResize)
           document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
         },
@@ -1237,7 +1278,6 @@
             if (layoutData.warehouseSize) {
               this.warehouseWidth = layoutData.warehouseSize.width || 800
               this.warehouseHeight = layoutData.warehouseSize.height || 600
-
             }
           } catch (e) {
             console.error('加载保存的布局失败', e)
