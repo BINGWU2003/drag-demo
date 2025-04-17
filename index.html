@@ -72,7 +72,9 @@
       min-height: 300px;
       max-width: 1200px;
       max-height: 800px;
-      transition: width 0.3s, height 0.3s;
+      transition: all 0.05s ease-out;
+      will-change: width, height;
+      transform: translate3d(0, 0, 0);
     }
 
     .warehouse-container.design-mode {
@@ -84,12 +86,17 @@
       position: absolute;
       background-color: transparent;
       z-index: 10;
+      transition: background-color 0.2s;
+    }
+
+    .resize-edge:hover {
+      background-color: rgba(64, 158, 255, 0.1);
     }
 
     .resize-edge.right {
       top: 0;
       right: 0;
-      width: 8px;
+      width: 12px;
       height: 100%;
       cursor: e-resize;
     }
@@ -98,16 +105,17 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 8px;
+      height: 12px;
       cursor: s-resize;
     }
 
     .resize-edge.corner {
       right: 0;
       bottom: 0;
-      width: 15px;
-      height: 15px;
+      width: 20px;
+      height: 20px;
       cursor: se-resize;
+      border-radius: 0 0 4px 0;
     }
 
     .resize-indicator {
@@ -1343,39 +1351,42 @@
         },
 
         onWarehouseResize(event) {
-          // 如果不在调整仓库大小状态或不在设计模式，则直接返回
           if (!this.isResizingWarehouse || !this.designMode) return
 
-          // 计算鼠标相对于起始位置的移动距离
-          const dx = event.clientX - this.startX
-          const dy = event.clientY - this.startY
-          const warehouseEl = this.$refs.warehouseRef
+          requestAnimationFrame(() => {
+            const dx = event.clientX - this.startX
+            const dy = event.clientY - this.startY
+            const warehouseEl = this.$refs.warehouseRef
 
-          let newWidth = this.startWidth
-          let newHeight = this.startHeight
+            let newWidth = this.startWidth
+            let newHeight = this.startHeight
 
-          // 根据不同的调整方向更新尺寸
-          switch (this.warehouseResizeDirection) {
-            case 'right':
-              // 只调整宽度，限制在最小400px和最大1200px之间
-              newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
-              break
-            case 'bottom':
-              // 只调整高度，限制在最小300px和最大800px之间
-              newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
-              break
-            case 'corner':
-              // 同时调整宽度和高度
-              newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
-              newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
-              break
-          }
+            switch (this.warehouseResizeDirection) {
+              case 'right':
+                newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
+                break
+              case 'bottom':
+                newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
+                break
+              case 'corner':
+                newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
+                newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
+                break
+            }
 
-          // 更新仓库容器尺寸
-          warehouseEl.style.width = newWidth + 'px'
-          warehouseEl.style.height = newHeight + 'px'
-          this.warehouseWidth = newWidth
-          this.warehouseHeight = newHeight
+            // 使用transform scale进行平滑过渡
+            const scaleX = newWidth / this.warehouseWidth
+            const scaleY = newHeight / this.warehouseHeight
+
+            warehouseEl.style.width = `${newWidth}px`
+            warehouseEl.style.height = `${newHeight}px`
+
+            this.warehouseWidth = newWidth
+            this.warehouseHeight = newHeight
+
+            // 更新网格背景大小
+            warehouseEl.style.backgroundSize = `${20 * scaleX}px ${20 * scaleY}px`
+          })
         },
 
         onWarehouseResizeEnd() {
