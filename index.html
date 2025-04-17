@@ -1121,7 +1121,11 @@
             }
           }
           localStorage.setItem('warehouseLayout', JSON.stringify(layoutData))
-          alert('货架布局已保存!')
+          this.$message({
+            message: '货架布局已保存!',
+            type: 'success',
+            duration: 1500
+          })
         },
         toggleMode() {
           if (this.designMode) {
