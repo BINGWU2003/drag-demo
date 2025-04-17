@@ -1077,7 +1077,9 @@
           { code: 'SKU007', status: '新品' },
           { code: 'SKU008', status: '热销' }
         ],
-        showDetailedInfo: true
+        showDetailedInfo: true,
+        copyBuffer: null, // 用于存储复制的货架
+        pasteOffset: 20 // 粘贴时的偏移量
       },
       mounted() {
         console.log(document)
@@ -1086,6 +1088,9 @@
         // 在document级别监听可确保即使鼠标移出货架元素，也能持续捕获鼠标移动
         document.addEventListener('mousemove', this.onMouseMove)
         document.addEventListener('mouseup', this.onMouseUp)
+
+        // 添加键盘事件监听，用于复制粘贴功能
+        document.addEventListener('keydown', this.handleKeyDown)
 
         // 在DOM更新后初始化事件和尺寸
         this.$nextTick(() => {
@@ -1106,6 +1111,7 @@
         document.removeEventListener('mouseup', this.onMouseUp)
         document.removeEventListener('mousemove', this.onWarehouseResize)
         document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
+        document.removeEventListener('keydown', this.handleKeyDown)
 
         // 移除仓库容器上的事件监听
         const warehouseEl = this.$refs.warehouseRef
@@ -1593,6 +1599,79 @@
         refreshShelfInfo() {
           // 实现刷新货架信息的逻辑
           console.log('刷新货架信息')
+        },
+        // 处理键盘事件
+        handleKeyDown(event) {
+          if (!this.designMode) return // 只在设计模式下工作
+
+          // Ctrl+C: 复制当前选中的货架
+          if (event.ctrlKey && event.key === 'c') {
+            this.copySelectedShelf()
+          }
+
+          // Ctrl+V: 粘贴复制的货架
+          if (event.ctrlKey && event.key === 'v') {
+            this.pasteShelf()
+          }
+        },
+
+        // 复制选中的货架
+        copySelectedShelf() {
+          if (this.currentShelf === null) {
+            this.$message({
+              message: '请先选择一个货架',
+              type: 'warning',
+              duration: 1500
+            })
+            return
+          }
+
+          // 深拷贝当前选中的货架
+          this.copyBuffer = JSON.parse(JSON.stringify(this.shelves[this.currentShelf]))
+
+          this.$message({
+            message: `已复制货架 #${this.copyBuffer.id}`,
+            type: 'success',
+            duration: 1500
+          })
+        },
+
+        // 粘贴货架
+        pasteShelf() {
+          if (!this.copyBuffer) {
+            this.$message({
+              message: '剪贴板中没有货架',
+              type: 'warning',
+              duration: 1500
+            })
+            return
+          }
+
+          // 创建新货架，使用复制的属性，但有新的ID和位置
+          const newShelf = { ...this.copyBuffer }
+          newShelf.id = this.nextId++
+          newShelf.name = `${newShelf.name}-复制`
+
+          // 设置新位置，相对于原货架有一个偏移
+          newShelf.x += this.pasteOffset
+          newShelf.y += this.pasteOffset
+
+          // 确保不超出仓库边界
+          const warehouseEl = this.$refs.warehouseRef
+          if (warehouseEl) {
+            newShelf.x = Math.min(newShelf.x, warehouseEl.clientWidth - newShelf.width)
+            newShelf.y = Math.min(newShelf.y, warehouseEl.clientHeight - newShelf.height)
+          }
+
+          // 添加新货架并选中它
+          this.shelves.push(newShelf)
+          this.currentShelf = this.shelves.length - 1
+
+          this.$message({
+            message: `已粘贴货架 #${newShelf.id}`,
+            type: 'success',
+            duration: 1500
+          })
         }
       },
       created() {
