@@ -14,6 +14,45 @@
   <!-- 引入Element UI CSS -->
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/element-ui/2.15.13/theme-chalk/index.css">
   <style>
+    .product-modal-content {
+      height: 500px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .product-modal-content .product-modal-content-body {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .product-modal-content .product-modal-content-body-item {
+      height: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+
+
+    .inventory-details-modal-content {
+      height: 500px;
+      display: flex;
+      flex-direction: column;
+
+    }
+
+    .inventory-details-modal-content .inventory-details-modal-content-body {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .inventory-details-modal-content .inventory-details-modal-content-body-item {
+      height: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -689,35 +728,34 @@
       </div>
     </div>
 
-    <!-- Element UI 替代原有弹窗 -->
-    <el-dialog :visible.sync="showModal" :title="modalTitle" width="500px" :before-close="closeModal"
+    <el-dialog :visible.sync="showModal.showInventoryDetailsModal" title="货架库存详情" width="500px" :before-close="closeModal"
       :append-to-body="true" :close-on-click-modal="false" :close-on-press-escape="false" center>
-
-      <!-- 库存信息弹窗内容 -->
-      <template v-if="modalType === 'inventory'">
-        <el-table :data="modalData" style="width: 100%" :empty-text="'暂无库存数据'">
-          <el-table-column prop="sku" label="SKU" width="180">
-          </el-table-column>
-          <el-table-column prop="quantity" label="数量">
-          </el-table-column>
-        </el-table>
-      </template>
-
-      <!-- 修改款号弹窗内容 -->
-      <template v-if="modalType === 'sku'">
-        <el-table ref="skuTable" :data="modalData" style="width: 100%" highlight-current-row
-          @current-change="handleCurrentChange" :row-class-name="tableRowClassName">
-          <el-table-column prop="code" label="款号" width="180">
-          </el-table-column>
-          <el-table-column prop="status" label="状态">
-          </el-table-column>
-        </el-table>
-      </template>
-
-      <span slot="footer" class="dialog-footer">
-        <el-button @click="closeModal">取 消</el-button>
-        <el-button v-if="modalType === 'sku'" type="primary" @click="saveShelfSku">确 定</el-button>
-      </span>
+      <div class="inventory-details-modal-content">
+        <div class="inventory-details-modal-content-header">
+          <span>{{ modalTitle.inventoryDetailsModalTitle }}</span>
+        </div>
+        <div class="inventory-details-modal-content-body" v-infinite-scroll="loadInventoryDetailsModalData">
+          <div class="inventory-details-modal-content-body-item" v-for="(item,index) in inventoryDetailsModalData"
+            :key="index">
+            <span>SKU001</span>
+            <span>100</span>
+          </div>
+        </div>
+      </div>
+      </el-dialog>
+      <el-dialog :visible.sync="showModal.showEditSkuModal" title="修改货架款号" width="500px" :before-close="closeModal"
+        :append-to-body="true" :close-on-click-modal="false" :close-on-press-escape="false" center>
+        <div class="product-modal-content">
+          <div class="product-modal-content-header">
+            <span>{{ modalTitle.editSkuModalTitle }}</span>
+          </div>
+          <div class="product-modal-content-body" v-infinite-scroll="loadInventoryDetailsModalData">
+            <div class="product-modal-content-body-item" v-for="(item,index) in inventoryDetailsModalData" :key="index">
+              <span>SKU001</span>
+              <span>100</span>
+            </div>
+          </div>
+        </div>
     </el-dialog>
   </div>
 
@@ -760,6 +798,10 @@
           medium: { width: 120, height: 90 },
           large: { width: 180, height: 120 }
         },
+        modalTitle: {
+          inventoryDetailsModalTitle: '货架xxx库存详情',
+          editSkuModalTitle: '修改货架xxx款号'
+        },
         designMode: false, // 默认进入查看模式
         warehouseWidth: 800,
         warehouseHeight: 600,
@@ -773,10 +815,12 @@
         filteredShelves: [],
         // 货架操作相关
         selectedShelfId: null,
-        showModal: false,
-        modalType: '', // 'inventory' 或 'sku'
-        modalTitle: '',
-        modalData: [],
+        showModal: {
+          showInventoryDetailsModal: false,
+          showEditSkuModal: false
+        },
+
+        inventoryDetailsModalData: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         currentModalShelf: null,
         selectedSkuIndex: -1,
         // 写死的款号数据
@@ -826,6 +870,9 @@
         }
       },
       methods: {
+        loadInventoryDetailsModalData() {
+          console.log('loadInventoryDetailsModalData')
+        },
         addShelf() {
           const warehouseEl = this.$refs.warehouseRef
           const width = 100
@@ -1038,8 +1085,6 @@
 
         applyWarehouseSize(width, height) {
           const warehouseEl = this.$refs.warehouseRef
-
-
           if (warehouseEl && this.designMode) {
             warehouseEl.style.width = width + 'px'
             warehouseEl.style.height = height + 'px'
@@ -1162,10 +1207,9 @@
         viewShelfInventory(shelf) {
 
           this.currentModalShelf = { ...shelf }
-          this.modalType = 'inventory'
-          this.modalTitle = `货架 #${shelf.id} (${shelf.name}) 库存信息`
+
           this.modalData = shelf.inventory || []
-          this.showModal = true
+          this.showModal.showInventoryDetailsModal = true
           this.selectedShelfId = null // 隐藏操作选项
         },
 
@@ -1173,14 +1217,15 @@
         editShelfSku(shelf) {
 
           this.currentModalShelf = { ...shelf }
-          this.modalType = 'sku'
-          this.modalTitle = `修改货架 #${shelf.id} (${shelf.name}) 款号`
+
+
           this.modalData = this.skuList
 
           // 找到当前货架使用的款号在列表中的索引
           this.selectedSkuIndex = this.skuList.findIndex(item => item.code === shelf.sku)
 
-          this.showModal = true
+
+          this.showModal.showEditSkuModal = true
           this.selectedShelfId = null // 隐藏操作选项
 
           // 在下一个Vue更新周期中设置选中行
@@ -1210,21 +1255,22 @@
 
         // 保存修改的款号
         saveShelfSku() {
-          if (this.selectedSkuIndex >= 0 && this.selectedSkuIndex < this.modalData.length) {
-            const selectedSku = this.modalData[this.selectedSkuIndex]
-            const shelf = this.shelves.find(s => s.id === this.currentModalShelf.id)
-            if (shelf && selectedSku) {
-              shelf.sku = selectedSku.code
-              this.closeModal()
-            }
-          }
+          console.log('saveShelfSku')
+
+          // if (this.selectedSkuIndex >= 0 && this.selectedSkuIndex < this.modalData.length) {
+          //   const selectedSku = this.modalData[this.selectedSkuIndex]
+          //   const shelf = this.shelves.find(s => s.id === this.currentModalShelf.id)
+          //   if (shelf && selectedSku) {
+          //     shelf.sku = selectedSku.code
+          //     this.closeModal()
+          //   }
+          // }
         },
 
         // 关闭弹窗
         closeModal() {
-          this.showModal = false
-          this.modalType = ''
-          this.modalTitle = ''
+          this.showModal.showInventoryDetailsModal = false
+          this.showModal.showEditSkuModal = false
           this.modalData = []
           this.currentModalShelf = null
           this.selectedSkuIndex = -1
@@ -1247,10 +1293,6 @@
         }
       },
       created() {
-        // 确保初始状态下弹窗是关闭的
-        this.showModal = false
-        this.modalType = ''
-        this.modalTitle = ''
         this.modalData = []
         this.currentModalShelf = null
         this.selectedSkuIndex = -1
