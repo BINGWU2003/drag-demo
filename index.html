@@ -1576,11 +1576,48 @@
         applyWarehouseSize(width, height) {
           const warehouseEl = this.$refs.warehouseRef
           if (warehouseEl && this.designMode) {
+            // 检查新尺寸是否会导致货架超出边界
+            if (!this.canResizeWarehouse(width, height)) {
+              // 如果会超出边界，取消调整
+              return
+            }
+            
             warehouseEl.style.width = width + 'px'
             warehouseEl.style.height = height + 'px'
             this.warehouseWidth = width
             this.warehouseHeight = height
           }
+        },
+        // 检查仓库调整大小是否会导致货架超出边界
+        canResizeWarehouse(newWidth, newHeight) {
+          // 检查是否有货架会超出新的边界
+          const isSafe = this.shelves.every(shelf => {
+            // 检查货架是否会超出右边界
+            if (shelf.x + shelf.width > newWidth) {
+              // 如果会超出，显示警告
+              this.$message({
+                message: `无法调整大小：货架 ${shelf.name} 将超出右边界`,
+                type: 'warning',
+                duration: 1500
+              })
+              return false
+            }
+
+            // 检查货架是否会超出下边界
+            if (shelf.y + shelf.height > newHeight) {
+              // 如果会超出，显示警告
+              this.$message({
+                message: `无法调整大小：货架 ${shelf.name} 将超出下边界`,
+                type: 'warning',
+                duration: 1500
+              })
+              return false
+            }
+
+            return true
+          })
+
+          return isSafe
         },
         startResizeWarehouse(direction, event) {
           console.log('startResizeWarehouse', direction, event)
@@ -1629,6 +1666,12 @@
                 newWidth = Math.max(400, Math.min(1200, this.startWidth + dx))
                 newHeight = Math.max(300, Math.min(800, this.startHeight + dy))
                 break
+            }
+
+            // 检查新尺寸是否会导致货架超出边界
+            if (!this.canResizeWarehouse(newWidth, newHeight)) {
+              // 如果会超出边界，取消调整
+              return
             }
 
             // 使用transform scale进行平滑过渡
