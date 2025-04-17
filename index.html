@@ -839,6 +839,38 @@
       align-items: center;
       margin-left: 15px;
     }
+
+    /* 框选区域样式 */
+    .selection-box {
+      position: absolute;
+      border: 1.5px dashed #409EFF;
+      background-color: rgba(64, 158, 255, 0.1);
+      z-index: 999;
+      pointer-events: none;
+    }
+    
+    /* 对齐工具栏样式 */
+    .alignment-toolbar {
+      position: absolute;
+      background-color: white;
+      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      padding: 8px;
+      z-index: 1200;
+      display: flex;
+      gap: 5px;
+      border: 1px solid #EBEEF5;
+    }
+    
+    .alignment-toolbar .el-button {
+      padding: 6px 8px;
+    }
+    
+    /* 多选时货架的样式 */
+    .shelf.multi-selected {
+      border-color: #409EFF;
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3);
+    }
   </style>
 </head>
 
@@ -923,10 +955,41 @@
       </div>
     </div>
 
-    <div class="warehouse-container" :class="{'design-mode': designMode}" ref="warehouseRef">
+    <div class="warehouse-container" :class="{'design-mode': designMode}" ref="warehouseRef"
+      @mousedown.left="designMode && startSelection($event)">
       <div class="resize-indicator" v-if="designMode">⤡</div>
       <div class="warehouse-size-info" v-if="designMode">
         {{ warehouseWidth }} × {{ warehouseHeight }} 像素
+      </div>
+
+      <!-- 框选区域 -->
+      <div v-if="selectionBox.isSelecting" class="selection-box" :style="{
+                         left: selectionBox.x + 'px',
+                         top: selectionBox.y + 'px',
+                         width: selectionBox.width + 'px',
+                         height: selectionBox.height + 'px'
+                       }">
+      </div>
+      
+      <!-- 对齐工具栏 -->
+      <div v-if="designMode && selectedShelves.length > 1" class="alignment-toolbar" :style="{
+                         left: alignmentToolbarPosition.x + 'px',
+                         top: alignmentToolbarPosition.y + 'px'
+                       }">
+        <el-button size="mini" type="primary" plain icon="el-icon-s-fold" title="左对齐"
+          @click="alignSelectedShelves('left')"></el-button>
+        <el-button size="mini" type="primary" plain icon="el-icon-s-unfold" title="右对齐"
+          @click="alignSelectedShelves('right')"></el-button>
+        <el-button size="mini" type="primary" plain icon="el-icon-sort-up" title="上对齐"
+          @click="alignSelectedShelves('top')"></el-button>
+        <el-button size="mini" type="primary" plain icon="el-icon-sort-down" title="下对齐"
+          @click="alignSelectedShelves('bottom')"></el-button>
+        <el-button size="mini" type="primary" plain icon="el-icon-menu" title="垂直居中对齐"
+          @click="alignSelectedShelves('centerV')"></el-button>
+        <el-button size="mini" type="primary" plain icon="el-icon-more" title="水平居中对齐"
+          @click="alignSelectedShelves('centerH')"></el-button>
+        <el-button size="mini" type="danger" plain icon="el-icon-close" title="取消选择"
+          @click="clearSelectedShelves"></el-button>
       </div>
 
       <!-- 网格线 -->
@@ -956,7 +1019,12 @@
 
       <template v-for="(shelf, index) in shelves" :key="shelf.id">
         <div class="shelf"
-          :class="{ 'view-mode': !designMode,  'hidden': !designMode && isSearchActive && !isShelfVisible(shelf),  'selected': currentShelf === index && designMode }"
+          :class="{ 
+            'view-mode': !designMode,  
+            'hidden': !designMode && isSearchActive && !isShelfVisible(shelf),  
+            'selected': currentShelf === index && designMode,
+            'multi-selected': isShelfSelected(index)
+          }"
           :style="{  width: shelf.width + 'px', height: shelf.height + 'px', left: shelf.x + 'px', top: shelf.y + 'px' }"
           @click.stop="designMode ? selectShelf(index) : showShelfOptions(shelf.id)">
           <div class="shelf-body" @mousedown.stop="designMode && startDrag(index, $event)">{{ shelf.name }}</div>
@@ -1168,7 +1236,19 @@
           show: false,
           vertical: [],
           horizontal: []
-        }
+        },
+        // 框选功能相关
+        selectionBox: {
+          isSelecting: false,
+          startX: 0,
+          startY: 0,
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0
+        },
+        selectedShelves: [], // 存储多选的货架索引
+        alignmentToolbarPosition: { x: 0, y: 0 } // 对齐工具栏位置
       },
       mounted() {
         console.log(document)
@@ -1180,6 +1260,10 @@
 
         // 添加键盘事件监听，用于复制粘贴功能
         document.addEventListener('keydown', this.handleKeyDown)
+
+        // 添加全局鼠标事件监听，用于框选功能
+        document.addEventListener('mousemove', this.onSelectionMove)
+        document.addEventListener('mouseup', this.endSelection)
 
         // 在DOM更新后初始化事件和尺寸
         this.$nextTick(() => {
@@ -1201,6 +1285,8 @@
         document.removeEventListener('mousemove', this.onWarehouseResize)
         document.removeEventListener('mouseup', this.onWarehouseResizeEnd)
         document.removeEventListener('keydown', this.handleKeyDown)
+        document.removeEventListener('mousemove', this.onSelectionMove)
+        document.removeEventListener('mouseup', this.endSelection)
 
         // 移除仓库容器上的事件监听
         const warehouseEl = this.$refs.warehouseRef
@@ -1289,7 +1375,29 @@
         },
         selectShelf(index) {
           if (!this.isDragging && !this.isResizing && this.designMode) {
-            this.currentShelf = index
+            // 如果按住Ctrl键，则进行多选
+            if (event && event.ctrlKey) {
+              if (this.isShelfSelected(index)) {
+                // 如果已经选中，则取消选中
+                this.selectedShelves = this.selectedShelves.filter(i => i !== index)
+              } else {
+                // 添加到选中列表
+                this.selectedShelves.push(index)
+                // 更新对齐工具栏位置
+                if (this.selectedShelves.length > 1) {
+                  this.updateAlignmentToolbarPosition()
+                }
+              }
+            } else {
+              // 如果已经在多选列表中，保持多选状态
+              if (this.isShelfSelected(index) && this.selectedShelves.length > 1) {
+                // 不做任何操作，保持当前选中状态
+              } else {
+                // 单选模式
+                this.selectedShelves = []
+                this.currentShelf = index
+              }
+            }
           }
         },
         startDrag(index, event) {
@@ -1432,6 +1540,11 @@
           // 处理仓库容器的点击事件
           if (event.target === this.$refs.warehouseRef) {
             this.currentShelf = null
+
+            // 如果没有按Ctrl键，则清除多选
+            if (!event.ctrlKey) {
+              this.clearSelectedShelves()
+            }
           }
         },
         setShelfSize(size) {
@@ -1859,6 +1972,211 @@
               this.alignmentGuides.horizontal.push(value2)
             }
           }
+        },
+
+        // 开始框选
+        startSelection(event) {
+          // 如果在调整大小或拖动，或者在货架上点击，则不启动框选
+          if (this.isResizing || this.isDragging ||
+            event.target.classList.contains('shelf') ||
+            event.target.closest('.shelf') ||
+            event.target.classList.contains('resize-handle') ||
+            event.target.classList.contains('resize-edge')) {
+            return
+          }
+
+          const warehouseRect = this.$refs.warehouseRef.getBoundingClientRect()
+          const startX = event.clientX - warehouseRect.left
+          const startY = event.clientY - warehouseRect.top
+
+          this.selectionBox = {
+            isSelecting: true,
+            startX: startX,
+            startY: startY,
+            x: startX,
+            y: startY,
+            width: 0,
+            height: 0
+          }
+        },
+
+        // 更新框选区域
+        onSelectionMove(event) {
+          if (!this.selectionBox.isSelecting || !this.designMode) return
+
+          const warehouseRect = this.$refs.warehouseRef.getBoundingClientRect()
+          let currentX = event.clientX - warehouseRect.left
+          let currentY = event.clientY - warehouseRect.top
+
+          // 限制在仓库容器内
+          currentX = Math.max(0, Math.min(currentX, warehouseRect.width))
+          currentY = Math.max(0, Math.min(currentY, warehouseRect.height))
+
+          // 计算选择框的位置和大小
+          const x = Math.min(this.selectionBox.startX, currentX)
+          const y = Math.min(this.selectionBox.startY, currentY)
+          const width = Math.abs(currentX - this.selectionBox.startX)
+          const height = Math.abs(currentY - this.selectionBox.startY)
+
+          this.selectionBox.x = x
+          this.selectionBox.y = y
+          this.selectionBox.width = width
+          this.selectionBox.height = height
+        },
+
+        // 结束框选并确定选中的货架
+        endSelection() {
+          if (!this.selectionBox.isSelecting || !this.designMode) return
+
+          // 如果框选区域过小，认为是点击事件，不执行选择
+          if (this.selectionBox.width < 10 && this.selectionBox.height < 10) {
+            this.selectionBox.isSelecting = false
+            return
+          }
+
+          // 检查哪些货架在选择框内
+          const selectedIndices = []
+          this.shelves.forEach((shelf, index) => {
+            // 检查货架是否与选择框相交
+            if (this.isShelfInSelectionBox(shelf)) {
+              selectedIndices.push(index)
+            }
+          })
+
+          // 更新选中的货架
+          this.selectedShelves = selectedIndices
+
+          // 如果有选中的货架，则显示对齐工具栏
+          if (this.selectedShelves.length > 1) {
+            this.updateAlignmentToolbarPosition()
+          }
+
+          this.selectionBox.isSelecting = false
+        },
+
+        // 检查货架是否在选择框内
+        isShelfInSelectionBox(shelf) {
+          const boxLeft = this.selectionBox.x
+          const boxRight = this.selectionBox.x + this.selectionBox.width
+          const boxTop = this.selectionBox.y
+          const boxBottom = this.selectionBox.y + this.selectionBox.height
+
+          const shelfLeft = shelf.x
+          const shelfRight = shelf.x + shelf.width
+          const shelfTop = shelf.y
+          const shelfBottom = shelf.y + shelf.height
+
+          // 检查是否有交集
+          return !(
+            boxLeft > shelfRight ||
+            boxRight < shelfLeft ||
+            boxTop > shelfBottom ||
+            boxBottom < shelfTop
+          )
+        },
+
+        // 检查货架是否被选中
+        isShelfSelected(index) {
+          return this.selectedShelves.includes(index)
+        },
+
+        // 更新对齐工具栏位置
+        updateAlignmentToolbarPosition() {
+          // 找出所有选中货架的最小Y值和最大值
+          let minY = Infinity
+          let maxX = 0
+
+          for (const index of this.selectedShelves) {
+            const shelf = this.shelves[index]
+            minY = Math.min(minY, shelf.y)
+            maxX = Math.max(maxX, shelf.x + shelf.width)
+          }
+
+          // 将工具栏放在所有选中货架的上方和右侧
+          this.alignmentToolbarPosition = {
+            x: Math.min(maxX + 10, this.warehouseWidth - 250),
+            y: Math.max(minY - 50, 10)
+          }
+        },
+
+        // 对齐选中的货架
+        alignSelectedShelves(alignment) {
+          if (this.selectedShelves.length <= 1) return
+
+          // 获取所有选中货架
+          const selectedShelvesObjects = this.selectedShelves.map(index => this.shelves[index])
+
+          // 根据对齐方式设置对齐值
+          switch (alignment) {
+            case 'left': {
+              // 找出最左侧的x坐标
+              const minX = Math.min(...selectedShelvesObjects.map(shelf => shelf.x))
+              // 将所有货架左对齐
+              selectedShelvesObjects.forEach(shelf => {
+                shelf.x = minX
+              })
+              break
+            }
+            case 'right': {
+              // 找出最右侧的x坐标
+              const maxRight = Math.max(...selectedShelvesObjects.map(shelf => shelf.x + shelf.width))
+              // 将所有货架右对齐
+              selectedShelvesObjects.forEach(shelf => {
+                shelf.x = maxRight - shelf.width
+              })
+              break
+            }
+            case 'top': {
+              // 找出最顶部的y坐标
+              const minY = Math.min(...selectedShelvesObjects.map(shelf => shelf.y))
+              // 将所有货架上对齐
+              selectedShelvesObjects.forEach(shelf => {
+                shelf.y = minY
+              })
+              break
+            }
+            case 'bottom': {
+              // 找出最底部的y坐标
+              const maxBottom = Math.max(...selectedShelvesObjects.map(shelf => shelf.y + shelf.height))
+              // 将所有货架下对齐
+              selectedShelvesObjects.forEach(shelf => {
+                shelf.y = maxBottom - shelf.height
+              })
+              break
+            }
+            case 'centerV': {
+              // 计算垂直中心线
+              const allCenters = selectedShelvesObjects.map(shelf => shelf.y + shelf.height / 2)
+              const avgCenter = allCenters.reduce((sum, center) => sum + center, 0) / allCenters.length
+              // 将所有货架垂直居中对齐
+              selectedShelvesObjects.forEach(shelf => {
+                shelf.y = avgCenter - shelf.height / 2
+              })
+              break
+            }
+            case 'centerH': {
+              // 计算水平中心线
+              const allCenters = selectedShelvesObjects.map(shelf => shelf.x + shelf.width / 2)
+              const avgCenter = allCenters.reduce((sum, center) => sum + center, 0) / allCenters.length
+              // 将所有货架水平居中对齐
+              selectedShelvesObjects.forEach(shelf => {
+                shelf.x = avgCenter - shelf.width / 2
+              })
+              break
+            }
+          }
+
+          // 发送成功提示
+          this.$message({
+            message: '货架已对齐',
+            type: 'success',
+            duration: 1500
+          })
+        },
+
+        // 清除选中的货架
+        clearSelectedShelves() {
+          this.selectedShelves = []
         },
       },
       created() {
