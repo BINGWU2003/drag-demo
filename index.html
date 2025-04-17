@@ -783,6 +783,62 @@
     .product-modal-content-body-item:hover {
       background-color: #f5f7fa;
     }
+
+    /* 网格线样式 */
+    .grid-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .grid-line {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .grid-line-horizontal {
+      left: 0;
+      width: 100%;
+      height: 1px;
+    }
+
+    .grid-line-vertical {
+      top: 0;
+      width: 1px;
+      height: 100%;
+    }
+
+    /* 对齐辅助线样式 */
+    .alignment-guide {
+      position: absolute;
+      background-color: #409EFF;
+      z-index: 1000;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .alignment-guide-vertical {
+      width: 1px;
+      height: 100%;
+      top: 0;
+    }
+
+    .alignment-guide-horizontal {
+      height: 1px;
+      width: 100%;
+      left: 0;
+    }
+
+    /* 网格切换开关 */
+    .grid-switch {
+      display: flex;
+      align-items: center;
+      margin-left: 15px;
+    }
   </style>
 </head>
 
@@ -799,6 +855,10 @@
             :icon="designMode ? 'el-icon-check' : 'el-icon-edit'">
             {{ designMode ? '保存布局' : '设计布局' }}
           </el-button>
+          <div class="grid-switch" v-if="designMode">
+            <el-switch v-model="gridEnabled" active-text="网格对齐" inactive-text="自由拖动">
+            </el-switch>
+          </div>
         </div>
       </div>
       <div class="operation-panel-content">
@@ -867,6 +927,26 @@
       <div class="resize-indicator" v-if="designMode">⤡</div>
       <div class="warehouse-size-info" v-if="designMode">
         {{ warehouseWidth }} × {{ warehouseHeight }} 像素
+      </div>
+
+      <!-- 网格线 -->
+      <div class="grid-lines" v-if="designMode && showGrid">
+        <div class="grid-line grid-line-horizontal" v-for="i in Math.floor(warehouseHeight / gridSize)" :key="'h-' + i"
+          :style="{top: (i * gridSize) + 'px'}">
+        </div>
+        <div class="grid-line grid-line-vertical" v-for="i in Math.floor(warehouseWidth / gridSize)" :key="'v-' + i"
+          :style="{left: (i * gridSize) + 'px'}">
+        </div>
+      </div>
+      
+      <!-- 对齐辅助线 -->
+      <div v-if="designMode && isDragging && alignmentGuides.show">
+        <div v-for="(guide, index) in alignmentGuides.vertical" :key="'v-guide-' + index"
+          class="alignment-guide alignment-guide-vertical" :style="{left: guide + 'px'}">
+        </div>
+        <div v-for="(guide, index) in alignmentGuides.horizontal" :key="'h-guide-' + index"
+          class="alignment-guide alignment-guide-horizontal" :style="{top: guide + 'px'}">
+        </div>
       </div>
 
       <!-- 添加调整大小的边缘处理，只在设计模式下显示 -->
@@ -1079,7 +1159,16 @@
         ],
         showDetailedInfo: true,
         copyBuffer: null, // 用于存储复制的货架
-        pasteOffset: 20 // 粘贴时的偏移量
+        pasteOffset: 20, // 粘贴时的偏移量
+        gridSize: 20, // 网格大小
+        gridEnabled: true, // 是否启用网格对齐
+        showGrid: true, // 是否显示网格线
+        alignmentThreshold: 10, // 对齐吸附阈值
+        alignmentGuides: { // 对齐辅助线
+          show: false,
+          vertical: [],
+          horizontal: []
+        }
       },
       mounted() {
         console.log(document)
@@ -1234,6 +1323,20 @@
           // 减去初始点击的偏移量，确保拖动感觉自然
           let newX = event.clientX - this.dragOffsetX
           let newY = event.clientY - this.dragOffsetY
+
+          // 如果启用了网格对齐
+          if (this.gridEnabled) {
+            // 查找对齐参考点
+            this.findAlignmentGuides(newX, newY, shelf.width, shelf.height)
+
+            // 对齐到网格或其他货架
+            const result = this.snapToGrid(newX, newY, shelf.width, shelf.height)
+            newX = result.x
+            newY = result.y
+          } else {
+            // 隐藏对齐辅助线
+            this.alignmentGuides.show = false
+          }
 
           // 限制在仓库容器内，防止货架被拖出边界
           newX = Math.max(0, Math.min(newX, warehouseRect.width - shelf.width))
@@ -1672,7 +1775,91 @@
             type: 'success',
             duration: 1500
           })
-        }
+        },
+
+        // 对齐到网格
+        snapToGrid(x, y, width, height) {
+          let snappedX = x
+          let snappedY = y
+
+          // 1. 先检查是否与其他货架对齐
+          if (this.alignmentGuides.vertical.length > 0) {
+            snappedX = parseInt(this.alignmentGuides.vertical[0])
+          }
+
+          if (this.alignmentGuides.horizontal.length > 0) {
+            snappedY = parseInt(this.alignmentGuides.horizontal[0])
+          }
+
+          // 2. 如果没有与其他货架对齐，则对齐到网格
+          if (snappedX === x && this.gridSize > 0) {
+            snappedX = Math.round(x / this.gridSize) * this.gridSize
+          }
+
+          if (snappedY === y && this.gridSize > 0) {
+            snappedY = Math.round(y / this.gridSize) * this.gridSize
+          }
+
+          return { x: snappedX, y: snappedY }
+        },
+
+        // 查找对齐参考线
+        findAlignmentGuides(x, y, width, height) {
+          // 重置对齐辅助线
+          this.alignmentGuides.vertical = []
+          this.alignmentGuides.horizontal = []
+          this.alignmentGuides.show = false
+
+          // 当前货架的边界
+          const currentLeft = x
+          const currentRight = x + width
+          const currentTop = y
+          const currentBottom = y + height
+          const currentCenterX = x + width / 2
+          const currentCenterY = y + height / 2
+
+          // 其他货架的关键对齐点
+          const otherShelves = this.shelves.filter((_, index) => index !== this.currentShelf)
+
+          // 遍历其他货架寻找对齐点
+          for (const otherShelf of otherShelves) {
+            // 其他货架的边界
+            const otherLeft = otherShelf.x
+            const otherRight = otherShelf.x + otherShelf.width
+            const otherTop = otherShelf.y
+            const otherBottom = otherShelf.y + otherShelf.height
+            const otherCenterX = otherShelf.x + otherShelf.width / 2
+            const otherCenterY = otherShelf.y + otherShelf.height / 2
+
+            // 检查垂直对齐（左边对左边，右边对右边，中心对中心）
+            this.checkAlignment(currentLeft, otherLeft, 'vertical')
+            this.checkAlignment(currentRight, otherRight, 'vertical')
+            this.checkAlignment(currentCenterX, otherCenterX, 'vertical')
+
+            // 检查水平对齐（顶部对顶部，底部对底部，中心对中心）
+            this.checkAlignment(currentTop, otherTop, 'horizontal')
+            this.checkAlignment(currentBottom, otherBottom, 'horizontal')
+            this.checkAlignment(currentCenterY, otherCenterY, 'horizontal')
+          }
+
+          // 如果有任何对齐线，显示它们
+          this.alignmentGuides.show =
+            this.alignmentGuides.vertical.length > 0 ||
+            this.alignmentGuides.horizontal.length > 0
+        },
+
+        // 检查两个点是否对齐
+        checkAlignment(value1, value2, direction) {
+          if (Math.abs(value1 - value2) <= this.alignmentThreshold) {
+            if (direction === 'vertical') {
+              // 如果是垂直方向，添加垂直辅助线
+              this.alignmentGuides.vertical.push(value2)
+            } else {
+              // 如果是水平方向，添加水平辅助线
+              this.alignmentGuides.horizontal.push(value2)
+            }
+          }
+        },
       },
       created() {
         this.modalData = []
